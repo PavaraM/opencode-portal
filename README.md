@@ -1,47 +1,101 @@
-# OpenCode Portal
+<div align="center">
 
-Web GUI for [OpenCode](https://opencode.ai) — the AI coding agent that lives in your terminal.
+# ⚡ OpenCode Portal
 
+**A lightweight web GUI for [OpenCode](https://opencode.ai) — the AI coding agent that lives in your terminal, now reachable from any browser on your LAN.**
+
+[![Node](https://img.shields.io/badge/node-%3E%3D18-339933?logo=node.js&logoColor=white)](https://nodejs.org)
+[![License: ISC](https://img.shields.io/badge/license-ISC-blue.svg)](#license)
+[![systemd](https://img.shields.io/badge/systemd-optional-orange?logo=linux&logoColor=white)](#1-quick-daemon-systemd)
+[![Status](https://img.shields.io/badge/status-active-brightgreen)]()
+
+</div>
+
+---
+
+## Table of Contents
+
+- [Why this exists](#why-this-exists)
+- [How it works](#how-it-works)
+- [Prerequisites](#prerequisites)
+- [Quick start](#quick-start)
+- [CLI reference](#cli-reference)
+- [Installation methods](#installation-methods)
+- [Configuration](#configuration)
+- [API](#api)
+- [Architecture](#architecture)
+- [File structure](#file-structure)
+- [Security](#security)
+- [Troubleshooting](#troubleshooting)
+- [Known limitations](#known-limitations)
+- [FAQ](#faq)
+- [Development](#development)
+- [Roadmap ideas](#roadmap-ideas)
+- [License](#license)
+
+---
+
+## Why this exists
+
+`opencode` is a fantastic terminal-native coding agent, but a terminal is a single-seat, single-machine experience. **OpenCode Portal** wraps `opencode serve` in a small, dependency-light Node.js process that:
+
+- Exposes a browser-based chat UI (React/Vite SPA) for sessions, file tree browsing, and streaming responses.
+- Keeps the actual `opencode serve` backend bound to `127.0.0.1` — never exposed directly.
+- Supervises the backend process: spawns it, restarts it on crash, and shuts it down cleanly.
+- Adds a couple of quality-of-life layers (health checks, request logging, a CLI daemon wrapper) that a raw `opencode serve` doesn't give you.
+
+In short: point a phone, tablet, or another machine on your LAN at `http://<host>:3000` and you have a coding agent chat interface without needing a terminal session open on that device.
+
+---
+
+## How it works
+
+```mermaid
+%%{init: {"flowchart": {"htmlLabels": true}} }%%
+flowchart TB
+    UI["Browser<br/>index.html + React/Vite SPA"]
+
+    subgraph Portal["Portal — server.js"]
+        direction TB
+        Static["Static file handler<br/>/ and /index.html"]
+        Health["Health check<br/>/api/health"]
+        Proxy["Reverse proxy<br/>/oc/* /assets/* /favicon*"]
+        Supervisor["Process supervisor<br/>spawn + auto-restart"]
+    end
+
+    subgraph Backend["opencode serve — :18749"]
+        direction TB
+        Engine["Chat API, sessions,<br/>file tree, SSE streaming"]
+    end
+
+    UI -->|"HTTP :3000"| Static
+    UI -->|"HTTP :3000"| Health
+    UI -->|"HTTP :3000"| Proxy
+    Proxy -->|"proxied request"| Engine
+    Supervisor -.->|"spawns, restarts on crash"| Engine
+
+    classDef client fill:#e3f2fd,stroke:#1565c0,stroke-width:1.5px,color:#0d47a1;
+    classDef portal fill:#f3e5f5,stroke:#6a1b9a,stroke-width:1.5px,color:#4a148c;
+    classDef backend fill:#e8f5e9,stroke:#2e7d32,stroke-width:1.5px,color:#1b5e20;
+
+    class UI client;
+    class Static,Health,Proxy,Supervisor portal;
+    class Engine backend;
 ```
-┌─────────────────────────────────────────────────┐
-│           Your Browser (port 3000)               │
-│                                                   │
-│   ┌───────────────────────────────────────────┐   │
-│   │  public/index.html  ← served directly     │   │
-│   │  React/Vite SPA     ← proxied from :18749 │   │
-│   └──────────────┬────────────────────────────┘   │
-│                  │                                 │
-└──────────────────┼─────────────────────────────────┘
-                   │
-                   ▼
-┌──────────────────────────────────────────────────┐
-│           OpenCode Portal (server.js)             │
-│                                                   │
-│    Static files  ◄─── /  /index.html              │
-│    Health check  ◄─── /api/health                 │
-│    Proxy to OC   ◄─── /oc/*  /assets/*  /favicon* │
-│                                                   │
-│    Child process: opencode serve --port 18749     │
-│    Auto-restarts on crash (2s delay)             │
-└──────────────────────┬───────────────────────────┘
-                       │
-                       ▼
-┌──────────────────────────────────────────────────┐
-│     opencode serve  (port 18749, localhost only)  │
-│                                                   │
-│    Chat API, sessions, file tree, SSE streaming   │
-└──────────────────────────────────────────────────┘
-```
+
+The portal is a **thin proxy + process supervisor** — it does not reimplement any agent logic. All chat/session/tool intelligence lives in `opencode serve`; the portal just gives it a front door.
+
+---
 
 ## Prerequisites
 
 | Requirement | Version | Notes |
 |---|---|---|
-| [Node.js](https://nodejs.org) | >= 18 | Runtime |
+| [Node.js](https://nodejs.org) | ≥ 18 | Runtime |
 | [opencode CLI](https://opencode.ai) | latest | Backend — the portal wraps this |
 | systemd (optional) | — | For auto-start on boot via `install.sh` |
 
-The portal does **not** include the opencode CLI — install it separately:
+The portal does **not** bundle the opencode CLI — install it separately:
 
 ```sh
 # macOS / Linux
@@ -50,6 +104,10 @@ curl -fsSL https://opencode.ai/install.sh | sh
 # Or via npm
 npm install -g @opencode/cli
 ```
+
+> 💡 Sanity check before anything else: `opencode --version` and `node --version` should both resolve. Most first-run issues trace back to one of these not being on `PATH`.
+
+---
 
 ## Quick start
 
@@ -64,6 +122,17 @@ Or run directly without the CLI wrapper:
 node server.js
 # Open http://localhost:3000
 ```
+
+**Fastest possible smoke test:**
+
+```sh
+node server.js &
+sleep 1
+curl -s http://localhost:3000/api/health
+# {"status":"ok"}
+```
+
+---
 
 ## CLI reference
 
@@ -98,19 +167,55 @@ npm install -g .   # or install from local path
 
 ### Lifecycle
 
-```
-ocportal run ────► [spawns node server.js as daemon]
-                      │
-                      ├──► writes PID to .ocportal.pid
-                      ├──► writes logs to ocportal.log
-                      └──► locks with .ocportal.lock (O_EXCL)
+```mermaid
+%%{init: {"flowchart": {"htmlLabels": true}} }%%
+flowchart TB
+    Run(["ocportal run"])
+    Spawn["Spawn node server.js<br/>as background daemon"]
+    PID["Write PID file<br/>.ocportal.pid"]
+    Log["Write logs<br/>ocportal.log"]
+    Lock["Acquire lock<br/>.ocportal.lock (O_EXCL)"]
 
-ocportal stop ───► [SIGTERM → wait 5s → SIGKILL if alive]
-                      │
-                      └──► removes .ocportal.pid
+    Stop(["ocportal stop"])
+    Term["Send SIGTERM"]
+    Wait["Wait up to 5s"]
+    Kill["Send SIGKILL<br/>if still alive"]
+    RmPID["Remove PID file"]
 
-ocportal restart ──► [stop] → [wait dead] → [run]
+    Restart(["ocportal restart"])
+
+    Run --> Spawn --> PID
+    Spawn --> Log
+    Spawn --> Lock
+
+    Stop --> Term --> Wait --> Kill --> RmPID
+
+    Restart -->|"1. stop"| Stop
+    Restart -->|"2. wait until dead"| Wait
+    Restart -->|"3. run"| Run
+
+    classDef action fill:#e3f2fd,stroke:#1565c0,stroke-width:1.5px,color:#0d47a1;
+    classDef artifact fill:#fff8e1,stroke:#f9a825,stroke-width:1.5px,color:#e65100;
+    classDef entry fill:#ede7f6,stroke:#5e35b1,stroke-width:1.5px,color:#311b92;
+
+    class Run,Restart entry;
+    class Stop entry;
+    class Spawn,Term,Wait,Kill action;
+    class PID,Log,Lock,RmPID artifact;
 ```
+
+**Cheat sheet:**
+
+```sh
+ocportal run           # start it
+ocportal status        # is it up?
+ocportal logs          # tail the log
+ocportal logs --size   # how big has it gotten?
+ocportal restart       # kick it
+ocportal stop --force  # nuke a stuck PID
+```
+
+---
 
 ## Installation methods
 
@@ -127,22 +232,35 @@ The install script:
 3. Installs to `/etc/systemd/system/opencode-portal.service`
 4. Enables and starts the service
 
-```
-install.sh
-    │
-    ├──► Pre-flight checks
-    │      ├── node --version
-    │      ├── opencode --version
-    │      └── systemctl --version
-    │
-    ├──► sed -e "s|__USER__|$(whoami)|g" \
-    │        -e "s|__DIR__|$(pwd)|g"     \
-    │        -e "s|__NODE__|$(which node)|g"
-    │
-    ├──► cp → /etc/systemd/system/opencode-portal.service
-    ├──► systemctl daemon-reload
-    ├──► systemctl enable
-    └──► systemctl restart
+```mermaid
+%%{init: {"flowchart": {"htmlLabels": true}} }%%
+flowchart TB
+    Start(["sudo sh install.sh"])
+
+    subgraph Checks["Pre-flight checks"]
+        direction TB
+        C1["node --version"]
+        C2["opencode --version"]
+        C3["systemctl --version"]
+    end
+
+    Template["Template service file<br/>sed __USER__ __DIR__ __NODE__"]
+    Copy["Copy to<br/>/etc/systemd/system/<br/>opencode-portal.service"]
+    Reload["systemctl daemon-reload"]
+    Enable["systemctl enable"]
+    RestartSvc["systemctl restart"]
+    Done(["Service running"])
+
+    Start --> Checks
+    Checks --> Template --> Copy --> Reload --> Enable --> RestartSvc --> Done
+
+    classDef entry fill:#ede7f6,stroke:#5e35b1,stroke-width:1.5px,color:#311b92;
+    classDef check fill:#e3f2fd,stroke:#1565c0,stroke-width:1.5px,color:#0d47a1;
+    classDef action fill:#e8f5e9,stroke:#2e7d32,stroke-width:1.5px,color:#1b5e20;
+
+    class Start,Done entry;
+    class C1,C2,C3 check;
+    class Template,Copy,Reload,Enable,RestartSvc action;
 ```
 
 **Management:**
@@ -156,6 +274,9 @@ journalctl -u opencode-portal -f
 
 # Stop
 sudo systemctl stop opencode-portal
+
+# Disable autostart entirely
+sudo systemctl disable opencode-portal
 ```
 
 ### 2. Direct (no systemd)
@@ -170,6 +291,17 @@ node server.js
 ocportal run
 ```
 
+### Which method should you use?
+
+| Scenario | Recommended method |
+|---|---|
+| Always-on home server / mini PC | systemd (`install.sh`) |
+| Quick local testing | `node server.js` or `./start.sh` |
+| CI / ephemeral container | `ocportal foreground`, controlled by your own supervisor |
+| macOS / Windows dev machine | `ocportal run` (CLI daemon, no systemd needed) |
+
+---
+
 ## Configuration
 
 ### Environment variables
@@ -180,7 +312,7 @@ ocportal run
 | `OPENCODE_SERVER_PASSWORD` | `''` (empty) | Password for internal opencode serve |
 | `LOG_REQUESTS` | `0` | Set to `1` to log each HTTP request with method, URL, status, duration |
 
-> **Note on `PORT`:** The CLI wrapper passes `PORT` through. `server.js` defaults to `3000`. `start.sh` defaults to `3000`. If you run `ocportal run` without setting `PORT`, the portal listens on `3000`.
+> **Note on `PORT`:** The CLI wrapper passes `PORT` through. `server.js` defaults to `3000`. `start.sh` defaults to `3000`. If you run `ocportal run` without setting `PORT`, the portal listens on `3000`. A non-numeric `PORT` value falls back to `3000` silently — check `ocportal config` if a custom port doesn't seem to take.
 
 ### Internal ports
 
@@ -188,6 +320,17 @@ ocportal run
 |---|---|---|
 | `3000` | Portal (server.js) | Public (LAN/all interfaces if bound to 0.0.0.0) |
 | `18749` | opencode serve | localhost only (127.0.0.1) — not exposed |
+
+### Example: custom port + password + verbose logging
+
+```sh
+PORT=8080 \
+OPENCODE_SERVER_PASSWORD=correct-horse-battery-staple \
+LOG_REQUESTS=1 \
+ocportal run
+```
+
+---
 
 ## API
 
@@ -199,7 +342,7 @@ ocportal run
 
 ### Proxied endpoints (to opencode serve on `localhost:18749`)
 
-All paths starting with `/oc/` or `/oc` are transparently proxied to opencode serve including query strings and request body. Same for `/assets/*`, `/favicon*`, `/apple-touch-icon*`, `/site.webmanifest`, and `/social-share.png`.
+All paths starting with `/oc/` or `/oc` are transparently proxied to opencode serve, including query strings and request body. Same for `/assets/*`, `/favicon*`, `/apple-touch-icon*`, `/site.webmanifest`, and `/social-share.png`.
 
 **Key proxied routes:**
 
@@ -216,64 +359,75 @@ All paths starting with `/oc/` or `/oc` are transparently proxied to opencode se
 
 > The portal is a pass-through proxy for these — it doesn't inspect or modify the request. Refer to the [opencode API docs](https://opencode.ai/docs) for full schema.
 
+### Example: scripted session via curl
+
+```sh
+# 1. Create a session
+SESSION_ID=$(curl -s -X POST http://localhost:3000/oc/session | jq -r '.id')
+
+# 2. Send a message
+curl -s -X POST http://localhost:3000/oc/session/$SESSION_ID/message \
+  -H "Content-Type: application/json" \
+  -d '{"content": "List the files in the current directory"}'
+
+# 3. Stream the response
+curl -N -X POST http://localhost:3000/oc/session/$SESSION_ID/message/stream
+```
+
+---
+
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                      Browser                             │
-│  ┌──────────────┐  ┌──────────────────┐                 │
-│  │ index.html   │  │ React/Vite SPA   │                 │
-│  │ (loading     │  │ (chat, sessions, │                 │
-│  │  screen,     │  │  file tree,      │                 │
-│  │  health      │  │  settings)       │                 │
-│  │  badge,      │  │                  │                 │
-│  │  keyboard    │  │  loaded from     │                 │
-│  │  shortcuts)  │  │  /assets/* via   │                 │
-│  └──────┬───────┘  │  proxy           │                 │
-│         │          └────────┬─────────┘                 │
-│         └─────────┬─────────┘                           │
-│                   │                                     │
-│            HTTP :3000                                    │
-└──────────────────┼──────────────────────────────────────┘
-                   │
-                   ▼
-┌──────────────────────────────────────────────────────────┐
-│               server.js (portal)                         │
-│                                                          │
-│   ┌─────────────────┐   ┌────────────────────────┐      │
-│   │ Static handler  │   │   Proxy handler         │      │
-│   │                 │   │                        │      │
-│   │ / → index.html │   │  /oc/* → :18749        │      │
-│   │ /api/health    │   │  /assets/* → :18749     │      │
-│   │                │   │  /favicon* → :18749     │      │
-│   └────────────────┘   └───────────┬────────────┘      │
-│                                    │                    │
-│   ┌────────────────────────────────┴──────────┐         │
-│   │  Child process manager                    │         │
-│   │                                           │         │
-│   │  spawn("opencode serve --port 18749")     │         │
-│   │       │                                    │         │
-│   │       ├── on exit → restart after 2s       │         │
-│   │       └── on SIGTERM/SIGINT → kill + close │         │
-│   └────────────────────────────────────────────┘         │
-│                                                          │
-│   Graceful shutdown: server.close() → process.exit()     │
-│   Uncaught exception: shutdown() → kill child → close    │
-│   Server error (EADDRINUSE): shutdown() → exit           │
-└──────────────────────┬───────────────────────────────────┘
-                       │
-                   HTTP :18749 (localhost only)
-                       │
-                       ▼
-┌──────────────────────────────────────────────────────────┐
-│              opencode serve                               │
-│                                                          │
-│   Chat engine, session management, file context,         │
-│   SSE streaming, tool execution                          │
-└──────────────────────────────────────────────────────────┘
+```mermaid
+%%{init: {"flowchart": {"htmlLabels": true}} }%%
+flowchart TB
+    subgraph Client["Browser"]
+        direction TB
+        Loader["index.html<br/>loading screen, health badge,<br/>keyboard shortcuts"]
+        SPA["React/Vite SPA<br/>chat, sessions, file tree, settings"]
+    end
+
+    subgraph PortalBox["server.js — Portal"]
+        direction TB
+        StaticH["Static handler<br/>/ /index.html"]
+        ProxyH["Proxy handler<br/>/oc/* /assets/* /favicon*"]
+        Mgr["Child process manager<br/>spawn opencode serve --port 18749"]
+        Shutdown["Shutdown handling<br/>SIGTERM/SIGINT → kill child → close<br/>uncaught exception → shutdown<br/>EADDRINUSE → shutdown"]
+    end
+
+    subgraph BackendBox["opencode serve — :18749 (localhost only)"]
+        direction TB
+        Core["Chat engine, session management,<br/>file context, SSE streaming,<br/>tool execution"]
+    end
+
+    Loader --> SPA
+    SPA -->|"HTTP :3000"| StaticH
+    SPA -->|"HTTP :3000"| ProxyH
+    ProxyH -->|"proxied HTTP"| Core
+    Mgr -->|"spawns"| Core
+    Mgr -.->|"on exit: restart after 2s"| Core
+    Shutdown -.->|"on signal: kill"| Mgr
+
+    classDef client fill:#e3f2fd,stroke:#1565c0,stroke-width:1.5px,color:#0d47a1;
+    classDef portal fill:#f3e5f5,stroke:#6a1b9a,stroke-width:1.5px,color:#4a148c;
+    classDef backend fill:#e8f5e9,stroke:#2e7d32,stroke-width:1.5px,color:#1b5e20;
+    classDef lifecycle fill:#fff8e1,stroke:#f9a825,stroke-width:1.5px,color:#e65100;
+
+    class Loader,SPA client;
+    class StaticH,ProxyH,Mgr portal;
+    class Shutdown lifecycle;
+    class Core backend;
 ```
 
-### File structure
+### Design principles
+
+- **Single responsibility.** The portal serves static assets, proxies API traffic, and supervises one child process. It does not touch agent state.
+- **Fail loud, recover fast.** Any crash of `opencode serve` triggers an automatic restart after a fixed 2s backoff — no exponential backoff, no crash-loop detection (see [Known limitations](#known-limitations)).
+- **Localhost-first security.** The sensitive backend never binds beyond `127.0.0.1`; only the thin proxy layer is LAN-facing.
+
+---
+
+## File structure
 
 ```
 opencode-portal/
@@ -300,6 +454,8 @@ opencode-portal/
         └── USER.md
 ```
 
+---
+
 ## Security
 
 | Concern | Status |
@@ -311,9 +467,15 @@ opencode-portal/
 | CSP header | Conservative: `self` + inline styles/scripts only |
 
 **Recommendations for production-like setups:**
-- Set `OPENCODE_SERVER_PASSWORD` if opencode serve needs auth
-- Put behind nginx/Caddy with TLS for LAN access
-- Use firewall rules to restrict port 3000
+
+- Set `OPENCODE_SERVER_PASSWORD` if opencode serve needs auth.
+- Put behind nginx/Caddy with TLS for LAN access.
+- Use firewall rules to restrict port 3000 to trusted subnets/devices.
+- If exposing beyond your LAN (e.g. via a VPN or tunnel), treat this like any other unauthenticated-by-default dashboard: put it behind a reverse proxy that adds its own auth layer (basic auth, OAuth2 proxy, etc.) rather than relying on the portal itself.
+
+**Threat model, briefly:** the portal assumes the LAN it's bound to is trusted. It is *not* designed to be internet-facing without a reverse proxy adding TLS and authentication in front of it.
+
+---
 
 ## Troubleshooting
 
@@ -327,6 +489,8 @@ opencode-portal/
 | `ocportal open` does nothing | No xdg-open/open/cmd | Manually open `http://localhost:3000` |
 | Systemd service won't start | `set -e` aborted install | Run `systemctl status opencode-portal --no-pager` |
 | `PORT=abc` behaves unexpectedly | Non-numeric PORT | Server falls back to 3000 |
+| Portal reachable but chat never responds | `opencode serve` stuck in a crash loop | Tail logs; if it's flapping every 2s, kill the daemon, run `opencode serve` manually in foreground to see the raw error |
+| Works on `localhost` but not from another LAN device | Firewall blocking port 3000, or portal bound to `127.0.0.1` only | Check firewall rules; confirm portal is bound to `0.0.0.0` |
 
 ### Logs
 
@@ -343,6 +507,8 @@ LOG_REQUESTS=1 ocportal run
 # Now ocportal.log shows: GET /api/health 200 2ms
 ```
 
+---
+
 ## Known limitations
 
 - **No TLS** — The portal doesn't support HTTPS. Use a reverse proxy (nginx/Caddy) for encrypted LAN access.
@@ -350,6 +516,28 @@ LOG_REQUESTS=1 ocportal run
 - **Single process** — No clustering. One Node.js process handles all requests.
 - **Linux-focused** — systemd service and `xdg-open` assumption. macOS works via `open`; Windows supported in CLI but not systemd.
 - **opencode required** — The portal is useless without the opencode CLI installed separately.
+- **Fixed restart backoff** — The 2s restart delay on child-process crash is constant, not exponential; a genuinely broken `opencode` install will crash-loop indefinitely rather than backing off.
+
+---
+
+## FAQ
+
+**Does this replace `opencode` itself?**
+No — it's a GUI shell around `opencode serve`. All the actual agent behavior, model calls, and tool execution come from the CLI you install separately.
+
+**Can I use this from my phone?**
+Yes, as long as your phone is on the same LAN (or VPN) as the machine running the portal, and port 3000 is reachable.
+
+**Is my data sent anywhere besides my own machine and the model provider opencode is configured to use?**
+No — the portal itself doesn't add any telemetry or third-party calls. It only proxies to your local `opencode serve` instance.
+
+**Can multiple people use the portal at once?**
+The portal itself doesn't restrict concurrent connections, but `opencode serve` session state is what determines whether that's a good idea in practice — check the [opencode docs](https://opencode.ai/docs) for its session model.
+
+**Why port 18749 for the internal server?**
+It's just a fixed, unlikely-to-collide high port chosen for the internal, localhost-only `opencode serve` process. It's not configurable via env var in the current version — if you need to change it, it's in `server.js`.
+
+---
 
 ## Development
 
@@ -363,6 +551,27 @@ node server.js
 # Edit public/index.html — all enhancement logic is inline
 # Edit server.js — proxy config, static serving, process management
 ```
+
+**Suggested workflow for changes:**
+
+1. Run `node server.js` in one terminal, tail `ocportal.log` in another.
+2. Hit `/api/health` after every change to confirm the portal itself is alive.
+3. Hit `/oc/global/health` to confirm the proxy → backend path is intact.
+4. For frontend changes, hard-refresh (disable cache) since `public/index.html` is served directly, not through a bundler dev server.
+
+---
+
+## Roadmap ideas
+
+> Not commitments — just directions worth considering as the project matures.
+
+- [ ] Exponential backoff (with a cap) instead of a fixed 2s restart delay
+- [ ] Built-in log rotation for `ocportal.log`
+- [ ] Optional basic-auth layer on the portal itself, for lighter-weight LAN protection without a full reverse proxy
+- [ ] `ocportal doctor` — a one-shot command that runs all the prerequisite/PATH/port checks in [Prerequisites](#prerequisites) and [Troubleshooting](#troubleshooting)
+- [ ] Configurable internal port for `opencode serve` (currently fixed at `18749`)
+
+---
 
 ## License
 

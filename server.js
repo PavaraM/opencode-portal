@@ -2,6 +2,7 @@
 const { spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
+const net = require('net');
 const fs = require('fs');
 
 const PORT = parseInt(process.env.PORT, 10) || 3000;
@@ -97,7 +98,7 @@ function start() {
     shutdown();
   });
 
-  const ASSET_PATHS = ['/assets/', '/favicon', '/apple-touch-icon', '/site.webmanifest', '/social-share.png'];
+  const ASSET_PATHS = ['/assets/', '/api/', '/favicon', '/apple-touch-icon', '/site.webmanifest', '/social-share.png'];
 
   const server = http.createServer((req, res) => {
     const start = Date.now();
@@ -117,6 +118,28 @@ function start() {
   server.timeout = 60000;
   server.keepAliveTimeout = 5000;
   server.headersTimeout = 62000;
+
+  const PROXY_PATHS = ['/oc/', '/oc', ...ASSET_PATHS];
+
+  server.on('upgrade', (req, socket, head) => {
+    if (PROXY_PATHS.some(p => req.url.startsWith(p))) {
+      const proxy = net.connect(OC_PORT, OC_HOST, () => {
+        const headers = ['Host', `${OC_HOST}:${OC_PORT}`, 'Connection', 'Upgrade', 'Upgrade', 'websocket'];
+        for (const [k, v] of Object.entries(req.headers)) {
+          if (!['host', 'connection', 'upgrade'].includes(k)) headers.push(k, v);
+        }
+        proxy.write(`${req.method} ${req.url} HTTP/1.1\r\n`);
+        for (let i = 0; i < headers.length; i += 2) proxy.write(`${headers[i]}: ${headers[i+1]}\r\n`);
+        proxy.write('\r\n');
+        proxy.write(head);
+        proxy.pipe(socket).pipe(proxy);
+      });
+      proxy.on('error', () => { try { socket.destroy(); } catch (e) {} });
+      socket.on('error', () => { try { proxy.destroy(); } catch (e) {} });
+    } else {
+      socket.destroy();
+    }
+  });
 
   server.on('error', (e) => {
     if (e.code === 'EADDRINUSE') {
