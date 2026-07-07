@@ -239,10 +239,17 @@ header .right{display:flex;align-items:center;gap:8px}
 <div class="toast" id="toast"></div>
 
 <script>
+const API = '/oc'
+
 // ── State ──
 let currentSessionID = null
 let isLoading = false
-const API = '/oc'
+let eventSource = null
+let streamEl = null
+let streamActive = false
+let streamText = ''
+let streamParts = []
+let streamTextsByPart = {}
 
 // ── Formatting ──
 function escape(s) {
@@ -251,7 +258,6 @@ function escape(s) {
 
 function renderMarkdown(text) {
   let html = escape(text)
-  // code blocks with lang
   html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) => {
     const lines = code.trimEnd().split('\n')
     const body = lines.map(l => {
@@ -261,9 +267,7 @@ function renderMarkdown(text) {
     }).join('\n')
     return `<pre><span class="lang-label">${lang || 'code'}</span><code>${body}</code></pre>`
   })
-  // inline code
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>')
-  // paragraphs
   html = html.replace(/\n\n/g, '</p><p>')
   html = html.replace(/\n/g, '<br>')
   return `<p>${html}</p>`
@@ -288,67 +292,121 @@ function autoResize(el) {
 }
 
 function handleKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault()
-    sendMessage()
-  }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
 }
 
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('collapsed')
-}
-
-function openSettings() {
-  document.getElementById('settingsModal').classList.add('open')
-}
-function closeSettings() {
-  document.getElementById('settingsModal').classList.remove('open')
-}
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed') }
+function openSettings() { document.getElementById('settingsModal').classList.add('open') }
+function closeSettings() { document.getElementById('settingsModal').classList.remove('open') }
 document.getElementById('settingsModal').addEventListener('click', e => {
   if (e.target === e.currentTarget) closeSettings()
 })
 
-function setStatus(text) {
-  document.getElementById('statusBar').textContent = text
-}
+function setStatus(text) { document.getElementById('statusBar').textContent = text }
 
 function addMsgDom(role, content, parts) {
   document.getElementById('welcome')?.remove()
   const avatars = { user: '🧑', assistant: '🤖', system: '⚙️' }
   const names = { user: 'You', assistant: 'OpenCode', system: 'System' }
-
   const el = document.createElement('div')
   el.className = 'msg'
   let body = renderMarkdown(content)
-
-  // Render non-text parts (tool calls, results)
   if (parts) {
     for (const p of parts) {
-      if (p.type === 'tool_use') {
+      if (p.type === 'tool_use')
         body += `<div class="tool-call">🔧 ${escape(p.name || 'tool')}(${escape(JSON.stringify(p.input || {}))})</div>`
-      } else if (p.type === 'tool_result') {
+      else if (p.type === 'tool_result')
         body += `<div class="tool-result">📋 ${escape(String(p.content || '').slice(0, 300))}</div>`
-      } else if (p.type === 'reasoning') {
+      else if (p.type === 'reasoning')
         body += `<div class="tool-call">💭 ${escape(String(p.text || p.content || '').slice(0, 200))}</div>`
-      }
     }
   }
-
-  el.innerHTML = `
-    <div class="msg-row">
-      <div class="msg-avatar ${role}">${avatars[role] || '?'}</div>
-      <div class="msg-body">
-        <div class="msg-name">${names[role] || role}</div>
-        <div class="msg-text">${body}</div>
-      </div>
-    </div>`
+  el.innerHTML = `<div class="msg-row"><div class="msg-avatar ${role}">${avatars[role] || '?'}</div><div class="msg-body"><div class="msg-name">${names[role] || role}</div><div class="msg-text">${body}</div></div></div>`
   document.getElementById('messages').appendChild(el)
   scrollBottom()
   return el
 }
+const addMsg = addMsgDom
 
-function addMsg(role, content, parts) {
-  return addMsgDom(role, content, parts)
+function updateStreamMsg() {
+  if (!streamEl) return
+  let body = renderMarkdown(streamText || (streamActive ? '▊' : ''))
+  for (const p of streamParts) {
+    if (p.type === 'tool_use')
+      body += `<div class="tool-call">🔧 ${escape(p.name || 'tool')}(${escape(JSON.stringify(p.input || {}))})</div>`
+    else if (p.type === 'tool_result')
+      body += `<div class="tool-result">📋 ${escape(String(p.content || '').slice(0, 300))}</div>`
+    else if (p.type === 'reasoning')
+      body += `<div class="tool-call">💭 ${escape(String(p.text || p.content || '').slice(0, 200))}</div>`
+  }
+  streamEl.querySelector('.msg-text').innerHTML = body
+  scrollBottom()
+}
+
+// ── SSE ──
+let streamMsgId = null
+function connectSSE() {
+  if (eventSource) eventSource.close()
+  eventSource = new EventSource(`${API}/event`)
+  eventSource.onmessage = (ev) => {
+    try {
+      const d = JSON.parse(ev.data)
+      const p = d.properties || {}
+      if (p.sessionID && p.sessionID !== currentSessionID) return
+
+      switch (d.type) {
+        case 'message.updated': {
+          const info = p.info || p
+          if (info.role !== 'assistant' || info.synthetic || streamActive) return
+          streamMsgId = info.id
+          streamActive = true
+          streamText = ''
+          streamParts = []
+          streamTextsByPart = {}
+          streamEl = addMsgDom('assistant', '▊')
+          break
+        }
+        case 'message.part.delta': {
+          if (!streamActive || !p.partID || p.field !== 'text') return
+          streamTextsByPart[p.partID] = (streamTextsByPart[p.partID] || '') + (p.delta || '')
+          streamText = Object.values(streamTextsByPart).join('')
+          updateStreamMsg()
+          break
+        }
+        case 'message.part.updated': {
+          if (!streamActive) return
+          const part = p.part
+          if (!part || part.synthetic) return
+          if (part.type === 'text' && part.text != null) {
+            if (part.text || !streamTextsByPart[part.id]) streamTextsByPart[part.id] = part.text
+            streamText = Object.values(streamTextsByPart).join('')
+            updateStreamMsg()
+          } else if (['tool_use','tool_result','reasoning'].includes(part.type)) {
+            const idx = streamParts.findIndex(x => x.id === part.id)
+            if (idx >= 0) streamParts[idx] = part
+            else streamParts.push(part)
+            updateStreamMsg()
+          }
+          break
+        }
+        case 'session.status': {
+          if (p.status?.type === 'idle' && streamActive) {
+            streamActive = false; streamEl = null; streamMsgId = null
+            isLoading = false
+            document.getElementById('sendBtn').disabled = false
+            setStatus('Ready')
+            loadSessions()
+          }
+          break
+        }
+      }
+    } catch {}
+  }
+  eventSource.onerror = () => {}
+}
+
+function disconnectSSE() {
+  if (eventSource) { eventSource.close(); eventSource = null }
 }
 
 // ── API ──
@@ -359,8 +417,7 @@ async function api(path, opts = {}) {
   try {
     const res = await fetch(`${API}${path}`, {
       headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', ...extraHeaders },
-      signal: controller.signal,
-      ...rest,
+      signal: controller.signal, ...rest,
     })
     const text = await res.text()
     if (!text) return null
@@ -372,10 +429,7 @@ async function api(path, opts = {}) {
 
 async function createSession() {
   const s = await api('/session', { method: 'POST', body: '{}' })
-  if (s && s.id) {
-    currentSessionID = s.id
-    return s
-  }
+  if (s && s.id) { currentSessionID = s.id; return s }
   throw new Error('Failed to create session')
 }
 
@@ -383,66 +437,66 @@ async function sendMessage() {
   const input = document.getElementById('promptInput')
   const text = input.value.trim()
   if (!text || isLoading) return
-  input.value = ''
-  input.style.height = 'auto'
+  input.value = ''; input.style.height = 'auto'
   isLoading = true
   document.getElementById('sendBtn').disabled = true
   setStatus('Thinking...')
-
   addMsg('user', text)
 
   try {
     if (!currentSessionID) await createSession()
 
+    connectSSE()
+    streamActive = false
+
     const result = await api(`/session/${currentSessionID}/message`, {
       method: 'POST',
       body: JSON.stringify({ parts: [{ type: 'text', text }] }),
-      // Increase timeout via signal for long responses
+      timeout: 300000,
     })
 
-    if (result && result.info) {
-      const role = result.info.role || 'assistant'
-      const textParts = result.parts ? result.parts.filter(p => p.type === 'text') : []
-      const content = textParts.map(p => p.text).join('\n') || '(no text response)'
-      addMsg(role, content, result.parts)
-    } else if (result && Array.isArray(result)) {
-      // Some responses return array of messages
-      for (const m of result.slice(-2)) {
-        const role = m.info?.role || 'assistant'
-        const textParts = m.parts ? m.parts.filter(p => p.type === 'text') : []
-        const content = textParts.map(p => p.text).join('\n') || ''
-        if (content) addMsg(role, content, m.parts)
+    if (!streamEl && result) {
+      if (result.info) {
+        const role = result.info.role || 'assistant'
+        const textParts = (result.parts || []).filter(p => p.type === 'text')
+        addMsgDom(role, textParts.map(p => p.text).join('\n') || '(no response)', result.parts)
+      } else if (Array.isArray(result)) {
+        for (const m of result.slice(-2)) {
+          const textParts = (m.parts || []).filter(p => p.type === 'text')
+          const content = textParts.map(p => p.text).join('\n')
+          if (content) addMsgDom(m.info?.role || 'assistant', content, m.parts)
+        }
       }
     }
   } catch (err) {
-    addMsg('system', `Error: ${err.message}`)
-    toast(`Request failed: ${err.message}`)
+    if (!streamEl) { addMsg('system', `Error: ${err.message}`); toast(`Request failed: ${err.message}`) }
   }
 
-  isLoading = false
-  document.getElementById('sendBtn').disabled = false
-  setStatus('Ready')
+  if (!streamActive) {
+    isLoading = false
+    document.getElementById('sendBtn').disabled = false
+    setStatus('Ready')
+  }
 }
 
 function sendQuickPrompt(text) {
-  document.getElementById('promptInput').value = text
-  sendMessage()
+  document.getElementById('promptInput').value = text; sendMessage()
 }
 
 function newChat() {
+  disconnectSSE()
   currentSessionID = null
+  streamActive = false; streamEl = null
   document.getElementById('messages').innerHTML = ''
   const scroll = document.getElementById('chatScroll')
   const wel = document.createElement('div')
-  wel.className = 'welcome'
-  wel.id = 'welcome'
+  wel.className = 'welcome'; wel.id = 'welcome'
   wel.innerHTML = document.querySelector('#welcome')?.innerHTML || '<h1>What are you building?</h1><p>OpenCode is an AI coding agent. Send a message to start a new session.</p>'
   scroll.prepend(wel)
-  loadSessions()
-  toast('New chat started')
+  loadSessions(); toast('New chat started')
 }
 
-// ── Sessions sidebar ──
+// ── Sessions ──
 async function loadSessions() {
   try {
     const sessions = await api('/session')
@@ -465,28 +519,19 @@ async function switchToSession(id, el) {
   currentSessionID = id
   document.getElementById('welcome')?.remove()
   document.getElementById('messages').innerHTML = ''
-
   try {
     setStatus('Loading messages...')
     const msgs = await api(`/session/${id}/message`)
     if (Array.isArray(msgs)) {
       for (const m of msgs) {
         const role = m.info?.role || 'assistant'
-        const textParts = m.parts ? m.parts.filter(p => p.type === 'text') : []
+        const textParts = (m.parts || []).filter(p => p.type === 'text')
         const content = textParts.map(p => p.text).join('\n')
-        if (content) addMsg(role, content, m.parts)
+        if (content) addMsgDom(role, content, m.parts)
       }
     }
     setStatus('Ready')
-    toast(`Loaded session`)
-  } catch (err) {
-    setStatus('Ready')
-    toast(`Error loading messages: ${err.message}`)
-  }
-}
-
-function switchSession(el) {
-  // called from click
+  } catch { setStatus('Ready') }
 }
 
 // ── File tree ──
@@ -508,10 +553,7 @@ async function loadFileTree() {
 
 // ── Init ──
 async function init() {
-  loadSessions()
-  loadFileTree()
-
-  // Try listing existing sessions for quick access
+  loadSessions(); loadFileTree()
   try {
     const sessions = await api('/session')
     if (Array.isArray(sessions) && sessions.length > 0) {
