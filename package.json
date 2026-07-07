@@ -1,0 +1,8 @@
+{
+  "name": "opencode-portal",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "PORT=3050 node server.js"
+  }
+}
