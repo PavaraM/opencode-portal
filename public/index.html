@@ -68,6 +68,7 @@
         #oc-loading{background:#080808;color:#e5e5e5}
         #oc-loading .sp{border-color:#333;border-top-color:#e5e5e5}
       }
+      .oc-lang-label{padding:2px 10px;font:530 11px/1.6 system-ui,sans-serif;text-transform:uppercase;letter-spacing:.5px;color:var(--v2-text-text-faint,#999);background:var(--v2-background-bg-layer-01,inherit);border-bottom:1px solid var(--v2-border-border-muted,#eee);border-radius:6px 6px 0 0}pre.shiki{padding-top:0!important}pre.shiki>code{border-radius:0 0 6px 6px}
       #oc-toast{position:fixed;top:12px;right:12px;z-index:10000;padding:10px 16px;border-radius:8px;font:530 13px/1.4 system-ui,sans-serif;color:#fff;background:#e03e3e;box-shadow:0 4px 12px rgba(0,0,0,.15);transform:translateY(-120%);opacity:0;transition:transform .25s,opacity .25s;pointer-events:none;max-width:360px}
       #oc-toast[data-show]{transform:translateY(0);opacity:1;pointer-events:auto}
       #oc-badge{position:fixed;bottom:12px;right:12px;z-index:9998;display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:20px;font:440 11px/1 system-ui,sans-serif;background:rgba(0,0,0,.06);color:#666;cursor:default;user-select:none;backdrop-filter:blur(4px)}
@@ -193,6 +194,20 @@
 
         checkHealth()
         setInterval(checkHealth, 30000)
+
+        var langMap = {'javascript':'JS','typescript':'TS','python':'Python','css':'CSS','html':'HTML','jsx':'JSX','tsx':'TSX','json':'JSON','yaml':'YAML','yml':'YAML','bash':'Bash','sh':'Shell','shellscript':'Shell','markdown':'MD','md':'MD','sql':'SQL','rust':'Rust','go':'Go','ruby':'Ruby','rb':'Ruby','php':'PHP','java':'Java','c':'C','cpp':'C++','csharp':'C#','cs':'C#','swift':'Swift','kotlin':'Kotlin','scala':'Scala','dart':'Dart','lua':'Lua','perl':'Perl','r':'R','diff':'Diff','dockerfile':'Docker','docker':'Docker'}
+        var codeObserver = new MutationObserver(function(){
+          document.querySelectorAll('pre.shiki code[class*="language-"]').forEach(function(code){
+            if(code.parentNode.querySelector('.oc-lang-label')) return
+            var lang = code.className.match(/language-(\S+)/)
+            if(!lang) return
+            var label = document.createElement('div')
+            label.className = 'oc-lang-label'
+            label.textContent = langMap[lang[1]] || lang[1]
+            code.parentNode.insertBefore(label, code)
+          })
+        })
+        codeObserver.observe(document.getElementById('root'),{childList:true,subtree:true})
       })()
     </script>
   </body>
