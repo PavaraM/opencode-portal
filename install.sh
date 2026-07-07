@@ -1,6 +1,7 @@
 #!/bin/sh
 set -e
 
+DIR="$(cd "$(dirname "$0")" && pwd)"
 SERVICE="opencode-portal.service"
 TARGET="/etc/systemd/system/$SERVICE"
 
@@ -9,7 +10,7 @@ if [ "$(id -u)" -ne 0 ]; then
   exit 1
 fi
 
-cp "$SERVICE" "$TARGET"
+cp "$DIR/$SERVICE" "$TARGET"
 systemctl daemon-reload
 systemctl enable "$SERVICE"
 systemctl restart "$SERVICE"
