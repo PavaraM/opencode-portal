@@ -63,6 +63,12 @@ function start() {
   const ASSET_PATHS = ['/assets/', '/favicon', '/apple-touch-icon', '/site.webmanifest', '/social-share.png']
 
   const server = http.createServer((req, res) => {
+    if (req.url === '/api/health') {
+      const alive = child.exitCode === null;
+      res.writeHead(alive ? 200 : 503, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: alive ? 'ok' : 'dead' }));
+      return;
+    }
     if (req.url.startsWith('/oc')) return ocProxy(req, res);
     if (ASSET_PATHS.some(p => req.url.startsWith(p))) return ocProxy(req, res);
     staticHandler(req, res);

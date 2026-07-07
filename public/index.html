@@ -37,7 +37,6 @@
   document.documentElement.dataset.colorScheme = mode
   document.documentElement.style.backgroundColor = isDark ? "#080808" : "#fafafa"
 
-  // Update theme-color meta tag to match app color scheme
   var metas = document.querySelectorAll("meta[name='theme-color']")
   if (metas.length > 0) metas[0].setAttribute("content", isDark ? "#080808" : "#fafafa")
 
@@ -59,11 +58,142 @@
   }
 })()
 </script>
-    <script type="module" crossorigin src="/assets/index-DagI10cx.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-IYbSmp4Q.css">
+    <style>
+      #oc-loading{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#fafafa;color:#1a1a1a;transition:opacity .3s}
+      #oc-loading[data-hidden]{opacity:0;pointer-events:none}
+      #oc-loading svg{width:36px;height:36px}
+      #oc-loading .sp{width:18px;height:18px;border:2px solid #d4d4d4;border-top-color:#1a1a1a;border-radius:50%;animation:sp .6s linear infinite}
+      @keyframes sp{to{transform:rotate(360deg)}}
+      @media(prefers-color-scheme:dark){
+        #oc-loading{background:#080808;color:#e5e5e5}
+        #oc-loading .sp{border-color:#333;border-top-color:#e5e5e5}
+      }
+      #oc-toast{position:fixed;top:12px;right:12px;z-index:10000;padding:10px 16px;border-radius:8px;font:530 13px/1.4 system-ui,sans-serif;color:#fff;background:#e03e3e;box-shadow:0 4px 12px rgba(0,0,0,.15);transform:translateY(-120%);opacity:0;transition:transform .25s,opacity .25s;pointer-events:none;max-width:360px}
+      #oc-toast[data-show]{transform:translateY(0);opacity:1;pointer-events:auto}
+      #oc-badge{position:fixed;bottom:12px;right:12px;z-index:9998;display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:20px;font:440 11px/1 system-ui,sans-serif;background:rgba(0,0,0,.06);color:#666;cursor:default;user-select:none;backdrop-filter:blur(4px)}
+      #oc-badge .dot{width:7px;height:7px;border-radius:50%}
+      #oc-badge .dot.ok{background:#22c55e}
+      #oc-badge .dot.fail{background:#e03e3e}
+      @media(prefers-color-scheme:dark){
+        #oc-badge{background:rgba(255,255,255,.06);color:#999}
+      }
+      @media(max-width:640px){
+        #oc-badge{bottom:8px;right:8px;font-size:10px;padding:3px 6px}
+        #oc-toast{top:8px;right:8px;left:8px;max-width:none;font-size:12px}
+      }
+      #oc-shortcuts{position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .2s}
+      #oc-shortcuts[data-open]{opacity:1;pointer-events:auto}
+      #oc-shortcuts-inner{background:var(--v2-background-bg-layer-01,#fff);border-radius:10px;padding:24px;min-width:300px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.2)}
+      #oc-shortcuts h3{margin:0 0 16px;font:530 15px/1 system-ui,sans-serif;color:var(--v2-text-text-base,#1a1a1a)}
+      #oc-shortcuts table{width:100%;border-collapse:collapse}
+      #oc-shortcuts td{padding:6px 0;font:440 13px/1 system-ui,sans-serif;color:var(--v2-text-text-muted,#666)}
+      #oc-shortcuts td:last-child{text-align:right;font-weight:530;color:var(--v2-text-text-base,#1a1a1a)}
+      #oc-shortcuts kbd{display:inline-block;padding:2px 6px;border-radius:4px;font:530 11px/1 system-ui,sans-serif;background:var(--v2-background-bg-base,#f5f5f5);border:1px solid var(--v2-border-border-muted,#ddd)}
+      @media(prefers-color-scheme:dark){
+        #oc-shortcuts-inner{background:#1a1a1a}
+        #oc-shortcuts kbd{background:#2a2a2a;border-color:#444}
+      }
+    </style>
   </head>
   <body class="antialiased overscroll-none text-12-regular overflow-hidden bg-v2-background-bg-deep">
+    <div id="oc-loading">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a10 10 0 1 0 10 10M12 2v4m0-4H8m4 0h4" stroke-linecap="round"/></svg>
+      <div class="sp"></div>
+    </div>
+    <div id="oc-toast"></div>
+    <div id="oc-badge"><span class="dot"></span><span class="lbl">connecting</span></div>
+    <div id="oc-shortcuts"><div id="oc-shortcuts-inner"><h3>Keyboard Shortcuts</h3><table><tr><td>Show this help</td><td><kbd>?</kbd></td></tr><tr><td>Close modal</td><td><kbd>Esc</kbd></td></tr><tr><td>Quick command</td><td><kbd>Ctrl+K</kbd></td></tr><tr><td>Search sessions</td><td><kbd>Ctrl+Shift+F</kbd></td></tr><tr><td>New session</td><td><kbd>Ctrl+Shift+N</kbd></td></tr><tr><td>Toggle sidebar</td><td><kbd>Ctrl+Shift+B</kbd></td></tr></table></div></div>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root" class="flex flex-col h-dvh bg-v2-background-bg-deep p-px"></div>
+    <script type="module" crossorigin src="/assets/index-DagI10cx.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-IYbSmp4Q.css">
+    <script>
+      ;(function(){
+        var LOADING = document.getElementById('oc-loading')
+        var BADGE = document.getElementById('oc-badge')
+        var DOT = BADGE.querySelector('.dot')
+        var LBL = BADGE.querySelector('.lbl')
+        var TOAST = document.getElementById('oc-toast')
+        var SHORTCUTS = document.getElementById('oc-shortcuts')
+        var toastTimer = null
+
+        function hideLoading(){
+          if(LOADING) LOADING.setAttribute('data-hidden','')
+        }
+
+        var ro = new MutationObserver(function(){
+          if(document.getElementById('root').children.length > 0){
+            hideLoading()
+            ro.disconnect()
+          }
+        })
+        ro.observe(document.getElementById('root'),{childList:true})
+        setTimeout(hideLoading,8000)
+
+        var inputTags = {INPUT:1,TEXTAREA:1,SELECT:1}
+        function isInput(el){
+          return el && (inputTags[el.tagName] || el.isContentEditable)
+        }
+
+        document.addEventListener('keydown',function(e){
+          if(e.key === '?' && !isInput(e.target)){
+            e.preventDefault()
+            SHORTCUTS.toggleAttribute('data-open')
+            return
+          }
+          if(e.key === 'Escape'){
+            if(SHORTCUTS.hasAttribute('data-open')){
+              SHORTCUTS.removeAttribute('data-open')
+              e.preventDefault()
+            }
+            return
+          }
+          if(e.key === 'k' && (e.ctrlKey || e.metaKey) && !e.shiftKey){
+            e.preventDefault()
+            var inp = document.querySelector('[data-slot="text-input-v2-input"]')
+            if(inp) inp.focus()
+            return
+          }
+        })
+
+        SHORTCUTS.addEventListener('click',function(e){
+          if(e.target === SHORTCUTS) SHORTCUTS.removeAttribute('data-open')
+        })
+
+        function showToast(msg, duration){
+          TOAST.textContent = msg
+          TOAST.setAttribute('data-show','')
+          clearTimeout(toastTimer)
+          toastTimer = setTimeout(function(){ TOAST.removeAttribute('data-show') }, duration || 4000)
+        }
+
+        var failCount = 0
+        function checkHealth(){
+          var xhr = new XMLHttpRequest()
+          xhr.open('GET','/api/health')
+          xhr.onload = function(){
+            if(xhr.status >= 200 && xhr.status < 400){
+              DOT.className = 'dot ok'
+              LBL.textContent = 'connected'
+              failCount = 0
+            }else{
+              fail()
+            }
+          }
+          xhr.onerror = fail
+          xhr.send()
+          function fail(){
+            DOT.className = 'dot fail'
+            LBL.textContent = 'disconnected'
+            failCount++
+            if(failCount === 1) showToast('Connection to OpenCode lost. Retrying...')
+            if(failCount >= 3) showToast('OpenCode is not responding. Check that opencode serve is running.', 8000)
+          }
+        }
+
+        checkHealth()
+        setInterval(checkHealth, 30000)
+      })()
+    </script>
   </body>
 </html>
