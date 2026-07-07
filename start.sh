@@ -1,2 +1,4 @@
 #!/bin/sh
-PORT=${PORT:-3050} OPENCODE_SERVER_PASSWORD='' node server.js
+# Start portal in foreground (for testing/debugging)
+# Usage: ./start.sh [--port PORT]
+PORT="${2:-${PORT:-3000}}" node server.js

@@ -5,6 +5,7 @@ const http = require('http');
 const fs = require('fs');
 
 const PORT = parseInt(process.env.PORT, 10) || 3000;
+const LOG_REQUESTS = process.env.LOG_REQUESTS === '1';
 const OC_PORT = 18749;
 const OC_HOST = '127.0.0.1';
 const OC = `http://${OC_HOST}:${OC_PORT}`;
@@ -14,7 +15,7 @@ const MIME = {
   '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
   '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon', '.wasm': 'application/wasm', '.woff2': 'font/woff2',
-  '.ttf': 'font/ttf', '.webp': 'image/webp',
+  '.ttf': 'font/ttf', '.webp': 'image/webp', '.avif': 'image/avif',
 };
 
 function proxyTo(target) {
@@ -45,14 +46,14 @@ function staticHandler(req, res) {
   let fp = req.url === '/' ? '/index.html' : req.url.split('?')[0];
   fp = path.join(PUBLIC, fp);
   if (!fp.startsWith(PUBLIC)) { res.writeHead(403); res.end(); return; }
-  fs.stat(fp, (err, stats) => {
-    if (err || !stats.isFile()) {
-      res.writeHead(404);
-      res.end();
-      return;
-    }
+  const rs = fs.createReadStream(fp);
+  rs.on('error', () => {
+    if (!res.headersSent) res.writeHead(404);
+    res.end();
+  });
+  rs.on('open', () => {
     res.writeHead(200, { 'Content-Type': MIME[path.extname(fp)] || 'application/octet-stream' });
-    fs.createReadStream(fp).pipe(res);
+    rs.pipe(res);
   });
 }
 
@@ -81,12 +82,14 @@ function start() {
 
   function shutdown() {
     clearTimeout(restartTimer);
-    if (child) try { child.kill(); } catch {}
+    if (child) try { child.kill(); } catch (e) { console.error('kill error:', e.message); }
     server.close(() => process.exit());
     setTimeout(() => process.exit(1), 3000);
   }
 
-  process.on('exit', () => { if (child) try { child.kill(); } catch {} });
+  process.on('exit', () => {
+    if (child) try { child.kill(); } catch (e) { console.error('kill error:', e.message); }
+  });
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
   process.on('uncaughtException', (e) => {
@@ -97,6 +100,9 @@ function start() {
   const ASSET_PATHS = ['/assets/', '/favicon', '/apple-touch-icon', '/site.webmanifest', '/social-share.png'];
 
   const server = http.createServer((req, res) => {
+    const start = Date.now();
+    const log = () => { if (LOG_REQUESTS) console.log(req.method, req.url, res.statusCode, Date.now() - start + 'ms'); };
+    res.on('finish', log);
     if (req.url === '/api/health') {
       const alive = child && child.exitCode === null;
       res.writeHead(alive ? 200 : 503, { 'Content-Type': 'application/json' });

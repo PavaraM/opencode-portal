@@ -2,6 +2,7 @@ node_modules/
 .opencode/
 opencodememories/
 .ocportal.pid
+.ocportal.lock
 ocportal.log
 *.log
 .env

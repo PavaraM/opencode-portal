@@ -2,17 +2,24 @@
 Description=OpenCode Web Portal
 After=network-online.target
 Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
 
 [Service]
 Type=simple
-User=pavara
-WorkingDirectory=/home/pavara/Workspace/opencode-portal
-ExecStart=/usr/bin/node server.js
-Restart=always
+User=__USER__
+WorkingDirectory=__DIR__
+ExecStart=__NODE__ server.js
+Restart=on-failure
 RestartSec=5
-Environment=PORT=3050
+Environment=PORT=3000
 Environment=OPENCODE_SERVER_PASSWORD=
-Environment=PATH=/home/pavara/.opencode/bin:/usr/local/bin:/usr/bin
+Environment=PATH=__PATH__
+PrivateTmp=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+CapabilityBoundingSet=
 
 [Install]
 WantedBy=multi-user.target
