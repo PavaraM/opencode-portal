@@ -1,0 +1,18 @@
+[Unit]
+Description=OpenCode Web Portal
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pavara
+WorkingDirectory=/home/pavara/Workspace/opencode-portal
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+Environment=PORT=3050
+Environment=OPENCODE_SERVER_PASSWORD=
+Environment=PATH=/home/pavara/.opencode/bin:/usr/local/bin:/usr/bin
+
+[Install]
+WantedBy=multi-user.target
