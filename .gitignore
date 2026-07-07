@@ -1,2 +1,5 @@
 node_modules/
 .opencode/
+opencodememories/
+.ocportal.pid
+ocportal.log

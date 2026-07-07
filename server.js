@@ -15,18 +15,23 @@ const MIME = {
   '.ico': 'image/x-icon',
 };
 
-function proxyHandler(req, res) {
-  const target = OC + req.url.replace(/^\/oc/, '');
-  const headers = { ...req.headers, host: `${OC_HOST}:${OC_PORT}` };
-  for (const k of ['sec-fetch-site','sec-fetch-mode','sec-fetch-dest','sec-fetch-user']) delete headers[k];
+function proxyTo(target) {
+  return (req, res) => {
+    const headers = { ...req.headers, host: `${OC_HOST}:${OC_PORT}` };
+    for (const k of ['sec-fetch-site','sec-fetch-mode','sec-fetch-dest','sec-fetch-user']) delete headers[k];
 
-  const pref = http.request(target, { method: req.method, headers }, (pRes) => {
-    res.writeHead(pRes.statusCode, pRes.headers);
-    pRes.pipe(res);
-  });
-  pref.on('error', () => { if (!res.headersSent) res.writeHead(502); res.end(); });
-  req.pipe(pref);
+    const pref = http.request(target + req.url, { method: req.method, headers }, (pRes) => {
+      res.writeHead(pRes.statusCode, pRes.headers);
+      pRes.pipe(res);
+    });
+    pref.on('error', () => { if (!res.headersSent) res.writeHead(502); res.end(); });
+    req.on('error', () => pref.destroy());
+    res.on('close', () => pref.destroy());
+    req.pipe(pref);
+  };
 }
+
+const ocProxy = proxyTo(OC);
 
 function staticHandler(req, res) {
   let fp = req.url === '/' ? '/index.html' : req.url.split('?')[0];
@@ -55,8 +60,11 @@ function start() {
   process.on('SIGINT', () => { try { child.kill(); } catch {}; process.exit(); });
   process.on('SIGTERM', () => { try { child.kill(); } catch {}; process.exit(); });
 
+  const ASSET_PATHS = ['/assets/', '/favicon', '/apple-touch-icon', '/site.webmanifest', '/social-share.png']
+
   const server = http.createServer((req, res) => {
-    if (req.url.startsWith('/oc')) return proxyHandler(req, res);
+    if (req.url.startsWith('/oc')) return ocProxy(req, res);
+    if (ASSET_PATHS.some(p => req.url.startsWith(p))) return ocProxy(req, res);
     staticHandler(req, res);
   });
   server.listen(PORT, () => console.log(`portal at http://localhost:${PORT}`));

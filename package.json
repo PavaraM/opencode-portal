@@ -2,6 +2,9 @@
   "name": "opencode-portal",
   "version": "1.0.0",
   "private": true,
+  "bin": {
+    "ocportal": "./cli.js"
+  },
   "scripts": {
     "start": "PORT=3050 node server.js"
   }

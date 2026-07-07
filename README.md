@@ -1,34 +1,46 @@
 # OpenCode Portal
 
-Web GUI for [OpenCode](https://opencode.ai) — an AI coding agent. Chat interface, session management, file browser, all wired to the real OpenCode API.
+Web GUI for [OpenCode](https://opencode.ai) — an AI coding agent.
 
 ## Quick start
 
 ```sh
-PORT=3050 OPENCODE_SERVER_PASSWORD='' node server.js
+ocportal run
 # Open http://localhost:3050
 ```
 
-## Install as systemd service
+## CLI
+
+| Command | Description |
+|---|---|
+| `ocportal run` | Start daemon in background (logs to `ocportal.log`) |
+| `ocportal stop` | Stop daemon |
+| `ocportal restart` | Restart daemon |
+| `ocportal open` | Open portal in browser |
+| `ocportal status` | Show running/stopped |
+| `ocportal config` | Show PORT, ROOT paths |
+
+Install globally once:
+
+```sh
+npm link   # or: npm install -g .
+```
+
+## Systemd service
 
 ```sh
 sudo sh install.sh
 ```
 
-Service runs on port 3050, auto-restarts on failure.
-
-## Manage
-
-```sh
-sudo systemctl status opencode-portal
-sudo journalctl -u opencode-portal -f
-sudo systemctl stop opencode-portal
-sudo systemctl start opencode-portal
-```
+Service runs on port 3050, auto-restarts. Logs: `journalctl -u opencode-portal -f`.
 
 ## How it works
 
-`server.js` spawns `opencode serve --port 18749` and proxies `/oc/*` requests to it. Frontend is a single HTML file at `public/index.html` with no build step.
+`server.js` spawns `opencode serve --port 18749` and proxies two things to it:
+- **API**: `/oc/*` routes (health, sessions, messages)
+- **Frontend assets**: `/assets/*`, favicons, manifest, social images
+
+The static `public/index.html` shell is served directly by the portal. The React/Vite app (from opencode serve) is loaded via the proxied assets.
 
 ## Configuration
 

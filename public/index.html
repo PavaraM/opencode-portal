@@ -1,601 +1,69 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OpenCode</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0a0a0b;--surface:#121214;--surface-2:#1a1a1d;--border:#222;--border-2:#2a2a2e;--text:#e8e8ed;--text-2:#a1a1aa;--text-3:#666;--accent:#f1ecec;--accent-muted:rgba(241,236,236,.1);--green:#4ade80;--red:#f87171;--blue:#60a5fa;--yellow:#fbbf24;--radius:8px;--radius-lg:12px;--sidebar-w:280px}
-html.light{--bg:#f5f5f0;--surface:#fff;--surface-2:#eee;--border:#ddd;--border-2:#ccc;--text:#1a1a1a;--text-2:#555;--text-3:#999;--accent:#222;--accent-muted:rgba(0,0,0,.06)}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:14px}
-button{cursor:pointer;font-family:inherit}
-input,textarea{font-family:inherit}
+<!doctype html>
+<html lang="en" style="background-color: var(--v2-background-bg-deep, #fafafa)">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, interactive-widget=resizes-content, viewport-fit=cover"
+    />
+    <title>OpenCode</title>
+    <link rel="icon" type="image/png" href="/favicon-96x96-v3.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon-v3.svg" />
+    <link rel="shortcut icon" href="/favicon-v3.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon-v3.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#fafafa" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta property="og:image" content="/social-share.png" />
+    <meta property="twitter:image" content="/social-share.png" />
+    <script id="oc-theme-preload-script">;(function () {
+  var key = "opencode-theme-id"
+  var themeId = localStorage.getItem(key) || "oc-2"
 
-/* Header */
-header{display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:48px;border-bottom:1px solid var(--border);flex-shrink:0;gap:12px}
-header .left{display:flex;align-items:center;gap:10px}
-header .left svg{width:22px;height:22px}
-header .left span{font-weight:600;font-size:15px}
-header .right{display:flex;align-items:center;gap:8px}
-.header-btn{background:none;border:1px solid var(--border);color:var(--text-2);padding:5px 12px;border-radius:6px;font-size:13px;display:flex;align-items:center;gap:6px;transition:all .15s}
-.header-btn:hover{background:var(--surface-2);color:var(--text);border-color:var(--border-2)}
-
-/* Layout */
-.layout{display:flex;flex:1;overflow:hidden}
-
-/* Sidebar */
-.sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;transition:width .2s,margin .2s,opacity .2s}
-.sidebar.collapsed{width:0;margin-left:calc(var(--sidebar-w)*-1);opacity:0;overflow:hidden}
-.sidebar-section{padding:12px 12px 8px}
-.sidebar-section .label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:8px;padding:0 8px}
-.sidebar-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;color:var(--text-2);font-size:13px;transition:all .1s}
-.sidebar-item:hover{background:var(--surface-2);color:var(--text)}
-.sidebar-item.active{background:var(--accent-muted);color:var(--text)}
-.sidebar-item .icon{flex-shrink:0;font-size:14px}
-.sidebar-item .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
-.sidebar-item .badge{font-size:11px;background:var(--accent-muted);color:var(--accent);padding:1px 7px;border-radius:999px;flex-shrink:0}
-.sidebar-scroll{overflow-y:auto;flex:1}
-.sidebar-scroll::-webkit-scrollbar{width:4px}
-.sidebar-scroll::-webkit-scrollbar-thumb{background:var(--border-2);border-radius:2px}
-.sidebar-scroll::-webkit-scrollbar-track{background:transparent}
-
-/* File tree */
-.file-tree{padding:0 12px 12px}
-.file-item{display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:4px;font-size:13px;color:var(--text-2);cursor:pointer}
-.file-item:hover{background:var(--surface-2);color:var(--text)}
-.file-item .icon{flex-shrink:0}
-.file-item .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.file-item.indent-1{padding-left:24px}
-.file-item.indent-2{padding-left:40px}
-.file-item.indent-3{padding-left:56px}
-
-/* Main area */
-.main{flex:1;display:flex;flex-direction:column;min-width:0}
-.chat-area{flex:1;overflow-y:auto;padding:24px 0 0}
-.chat-area::-webkit-scrollbar{width:6px}
-.chat-area::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
-.chat-scroll{max-width:800px;margin:0 auto;padding:0 24px}
-
-/* Messages */
-.msg{margin-bottom:24px;animation:fadeIn .2s}
-@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-.msg-row{display:flex;gap:10px;align-items:flex-start}
-.msg-avatar{width:30px;height:30px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;margin-top:2px}
-.msg-avatar.user{background:var(--accent-muted);color:var(--accent)}
-.msg-avatar.assistant{background:rgba(96,165,250,.15);color:var(--blue)}
-.msg-avatar.system{background:rgba(74,222,128,.15);color:var(--green)}
-.msg-body{flex:1;min-width:0}
-.msg-name{font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text-2)}
-.msg-text{line-height:1.65;color:var(--text);white-space:pre-wrap}
-.msg-text p{margin-bottom:8px}
-.msg-text p:last-child{margin-bottom:0}
-.msg-text code{background:var(--surface-2);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:13px}
-.msg-text pre{margin:12px 0;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;overflow-x:auto;position:relative}
-.msg-text pre code{background:none;padding:0;font-size:13px;line-height:1.5;color:var(--text)}
-.msg-text pre .lang-label{position:absolute;top:8px;right:10px;font-size:11px;color:var(--text-3);text-transform:uppercase}
-.msg-text pre .copy-btn{position:absolute;top:6px;right:8px;background:var(--surface);border:1px solid var(--border);color:var(--text-3);padding:2px 7px;border-radius:4px;font-size:12px;cursor:pointer;opacity:0;transition:opacity .15s;line-height:1.4;z-index:1}
-.msg-text pre:hover .copy-btn{opacity:1}
-.msg-text h1{font-size:20px;font-weight:700;margin:16px 0 8px}
-.msg-text h2{font-size:17px;font-weight:600;margin:14px 0 6px}
-.msg-text h3{font-size:15px;font-weight:600;margin:12px 0 4px}
-.msg-text ul,.msg-text ol{padding-left:20px;margin:8px 0}
-.msg-text li{margin-bottom:4px;white-space:normal}
-.msg-text .diff-add{background:rgba(74,222,128,.08);color:var(--green);display:block;padding:1px 16px;margin:0 -16px}
-.msg-text .diff-rem{background:rgba(248,113,113,.08);color:var(--red);display:block;padding:1px 16px;margin:0 -16px}
-.msg-text .tool-call{margin:8px 0;padding:8px 12px;background:rgba(251,191,36,.06);border-left:2px solid var(--yellow);border-radius:0 6px 6px 0;font-size:13px;color:var(--text-2)}
-.msg-text .tool-result{margin:8px 0;padding:8px 12px;background:rgba(96,165,250,.06);border-left:2px solid var(--blue);border-radius:0 6px 6px 0;font-size:13px;color:var(--text-2)}
-
-/* Welcome */
-.welcome{text-align:center;padding:80px 24px 40px}
-.welcome h1{font-size:28px;font-weight:700;margin-bottom:8px}
-.welcome p{color:var(--text-2);max-width:440px;margin:0 auto 32px;line-height:1.5}
-.welcome-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;max-width:700px;margin:0 auto}
-.welcome-card{padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);text-align:left;cursor:pointer;transition:border-color .15s}
-.welcome-card:hover{border-color:var(--border-2)}
-.welcome-card .icon{font-size:20px;margin-bottom:8px}
-.welcome-card h3{font-size:14px;font-weight:600;margin-bottom:4px}
-.welcome-card p{font-size:12px;color:var(--text-3);margin:0;max-width:none}
-
-/* Input */
-.input-area{border-top:1px solid var(--border);padding:16px 24px 24px;background:var(--bg);flex-shrink:0}
-.input-box{max-width:800px;margin:0 auto}
-.input-wrapper{display:flex;gap:8px;align-items:flex-end;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:8px;transition:border-color .15s}
-.input-wrapper:focus-within{border-color:#444}
-.input-wrapper textarea{border:none;background:none;color:var(--text);font-size:14px;padding:4px 8px;resize:none;flex:1;outline:none;line-height:1.5;max-height:200px}
-.input-wrapper textarea::placeholder{color:var(--text-3)}
-.send-btn{width:34px;height:34px;border:none;border-radius:6px;background:var(--accent);color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;transition:opacity .15s}
-.send-btn:hover{opacity:.85}
-.send-btn:disabled{opacity:.3;cursor:default}
-.input-tools{display:flex;gap:16px;margin-top:10px;padding:0 4px}
-.input-tools label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-3);cursor:pointer}
-.input-tools select{background:var(--surface);border:1px solid var(--border);color:var(--text-2);border-radius:6px;padding:3px 8px;font-size:12px;outline:none}
-.input-tools select:focus{border-color:var(--border-2)}
-.status-bar{font-size:12px;color:var(--text-3);flex:1;text-align:right}
-
-/* Modal */
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .2s}
-.modal-overlay.open{opacity:1;pointer-events:auto}
-.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:90%;max-width:480px}
-.modal h2{font-size:16px;margin-bottom:16px}
-.modal label{font-size:13px;color:var(--text-2);display:block;margin-bottom:6px;margin-top:12px}
-.modal label:first-of-type{margin-top:0}
-.modal input,.modal select{width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:6px;font-size:14px;outline:none}
-.modal input:focus,.modal select:focus{border-color:var(--border-2)}
-.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
-.modal-actions button{padding:8px 16px;border-radius:6px;font-size:13px;font-weight:500}
-.modal-actions .cancel{background:none;border:1px solid var(--border);color:var(--text-2)}
-.modal-actions .cancel:hover{background:var(--surface-2)}
-.modal-actions .save{background:var(--accent);border:none;color:var(--bg)}
-
-/* Toast */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 16px;font-size:13px;color:var(--text-2);opacity:0;transition:all .3s;pointer-events:none;z-index:200}
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-
-@media(max-width:768px){.sidebar{position:fixed;z-index:50;height:100%;width:100%;margin-left:0}.sidebar.collapsed{margin-left:-100%}.welcome-grid{grid-template-columns:1fr}.layout{position:relative}}
-</style>
-</head>
-<body>
-
-<header>
-  <div class="left">
-    <button class="header-btn" onclick="toggleSidebar()" title="Toggle sidebar" style="padding:5px 8px">☰</button>
-    <svg viewBox="0 0 234 42" fill="none" style="width:18px;height:18px"><path d="M18 30H6V18h12v12Z" fill="#4B4646"/><path d="M18 12H6v18h12V12Zm6 24H0V6h24v30Z" fill="#B7B1B1"/><path d="M48 30H36V18h12v12Z" fill="#4B4646"/><path d="M36 30h12V12H36v18Zm18 6H36v6h-6V6h30v30Z" fill="#B7B1B1"/><path d="M84 24v6H66v-6h18Z" fill="#4B4646"/><path d="M84 24H66v6h18v6H60V6h24v18ZM66 18h12v-6H66v6Z" fill="#F1ECEC"/><path d="M108 36H96V18h12v18Z" fill="#4B4646"/><path d="M108 12H96v24h-6V6h18v6Zm6 24h-6V12h6v24Z" fill="#F1ECEC"/><path d="M144 30h-18V18h18v12Z" fill="#4B4646"/><path d="M144 12h-18v18h18v6h-24V6h24v6Z" fill="#F1ECEC"/><path d="M168 30h-12V18h12v12Z" fill="#4B4646"/><path d="M168 12h-12v18h12V12Zm6 24h-24V6h24v30Z" fill="#F1ECEC"/><path d="M198 30h-12V18h12v12Z" fill="#4B4646"/><path d="M198 12h-12v18h12V12Zm6 24h-24V6h18V0h6v36Z" fill="#F1ECEC"/><path d="M234 24v6h-18v-6h18Z" fill="#4B4646"/><path d="M216 12v6h12v-6h-12Zm18 12h-18v6h18v6h-24V6h24v18Z" fill="#F1ECEC"/></svg>
-    <span>OpenCode</span>
-  </div>
-  <div class="right">
-    <button class="header-btn" onclick="newChat()">＋ New Chat</button>
-    <button class="header-btn" onclick="toggleTheme()" id="themeBtn">🌙</button><button class="header-btn" onclick="openSettings()">⚙️</button>
-  </div>
-</header>
-
-<div class="layout">
-  <!-- Sidebar -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-section">
-      <div class="label">Sessions</div>
-      <div id="sessionList">
-        <div class="sidebar-item active" onclick="switchSession(this)">
-          <span class="icon">💬</span>
-          <span class="name">Main</span>
-          <span class="badge">active</span>
-        </div>
-      </div>
-    </div>
-    <div class="sidebar-section">
-      <div class="label">Model</div>
-      <select id="modelSelect" style="width:100%;background:var(--surface-2);border:1px solid var(--border);color:var(--text);padding:6px 10px;border-radius:6px;font-size:13px;outline:none;cursor:pointer">
-        <option>Claude Sonnet 4</option>
-        <option>Claude 3.5 Haiku</option>
-        <option>GPT-4o</option>
-        <option>GPT-4o Mini</option>
-        <option>Gemini 2.5 Pro</option>
-        <option selected>DeepSeek V3</option>
-      </select>
-    </div>
-    <div class="sidebar-section" style="flex:1;display:flex;flex-direction:column;overflow:hidden">
-      <div class="label">Workspace</div>
-      <div class="file-tree sidebar-scroll" id="fileTree">
-        <div class="file-item"><span class="icon">📁</span><span class="name">src/</span></div>
-        <div class="file-item indent-1"><span class="icon">📄</span><span class="name">main.ts</span></div>
-        <div class="file-item indent-1"><span class="icon">📄</span><span class="name">agent.ts</span></div>
-        <div class="file-item indent-1"><span class="icon">📄</span><span class="name">session.ts</span></div>
-        <div class="file-item indent-1"><span class="icon">📁</span><span class="name">lsp/</span></div>
-        <div class="file-item indent-2"><span class="icon">📄</span><span class="name">client.ts</span></div>
-        <div class="file-item file-item indent-1"><span class="icon">📄</span><span class="name">config.ts</span></div>
-        <div class="file-item"><span class="icon">📄</span><span class="name">package.json</span></div>
-        <div class="file-item"><span class="icon">📄</span><span class="name">tsconfig.json</span></div>
-      </div>
-    </div>
-  </aside>
-
-  <!-- Main -->
-  <div class="main">
-    <div class="chat-area" id="chatArea">
-      <div class="chat-scroll" id="chatScroll">
-        <div class="welcome" id="welcome">
-          <h1>What are you building?</h1>
-          <p>OpenCode is an AI coding agent that runs in your terminal. This portal lets you interact with it through a visual interface.</p>
-          <div class="welcome-grid">
-            <div class="welcome-card" onclick="sendQuickPrompt('Refactor the main agent loop to be more efficient')"><div class="icon">⚡</div><h3>Refactor code</h3><p>Optimize and restructure existing code</p></div>
-            <div class="welcome-card" onclick="sendQuickPrompt('Create a new React component for a data table with sorting')"><div class="icon">🧩</div><h3>Build a component</h3><p>Generate UI components with full logic</p></div>
-            <div class="welcome-card" onclick="sendQuickPrompt('Explain the architecture of this codebase and suggest improvements')"><div class="icon">🔍</div><h3>Explore codebase</h3><p>Understand and navigate your project</p></div>
-            <div class="welcome-card" onclick="sendQuickPrompt('Write tests for the utility functions in src/utils/')"><div class="icon">🧪</div><h3>Write tests</h3><p>Generate test coverage for modules</p></div>
-          </div>
-        </div>
-        <div id="messages"></div>
-      </div>
-    </div>
-
-    <div class="input-area">
-      <div class="input-box">
-        <div class="input-wrapper">
-          <textarea id="promptInput" rows="1" placeholder="Ask OpenCode to build, refactor, or explore..." oninput="autoResize(this)" onkeydown="handleKey(event)"></textarea>
-          <button class="send-btn" id="sendBtn" onclick="sendMessage()">→</button>
-        </div>
-        <div class="input-tools">
-          <label>📎 <span style="color:var(--text-3)">Context</span></label>
-          <label>🔧 <span style="color:var(--text-3)">Tools</span></label>
-          <span class="status-bar" id="statusBar">Ready</span>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- Settings modal -->
-<div class="modal-overlay" id="settingsModal">
-  <div class="modal">
-    <h2>Settings</h2>
-    <label>Default Model</label>
-    <select><option>Claude Sonnet 4</option><option>Claude 3.5 Haiku</option><option>GPT-4o</option><option>DeepSeek V3</option></select>
-    <label>Theme</label>
-    <select><option>Dark</option><option>Light</option></select>
-    <label>API Endpoint</label>
-    <input value="http://localhost:8080/api">
-    <label>Context Window</label>
-    <select><option>Full (all messages)</option><option>Recent (last 50)</option><option selected>Balanced (last 100)</option></select>
-    <div class="modal-actions">
-      <button class="cancel" onclick="closeSettings()">Cancel</button>
-      <button class="save" onclick="closeSettings()">Save</button>
-    </div>
-  </div>
-</div>
-
-<div class="toast" id="toast"></div>
-
-<script>
-const API = '/oc'
-
-// ── State ──
-let currentSessionID = null
-let isLoading = false
-let eventSource = null
-let streamEl = null
-let streamActive = false
-let streamText = ''
-let streamParts = []
-let streamTextsByPart = {}
-
-function toggleTheme() {
-  const isLight = document.documentElement.classList.toggle('light')
-  document.getElementById('themeBtn').textContent = isLight ? '☀️' : '🌙'
-  localStorage.setItem('opencode-theme', isLight ? 'light' : 'dark')
-}
-
-// ── Formatting ──
-function escape(s) {
-  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-}
-
-function renderMarkdown(text) {
-  let html = escape(text)
-  html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (_, lang, code) => {
-    const lines = code.trimEnd().split('\n')
-    const body = lines.map(l => {
-      if (l.startsWith('+ ')) return `<span class="diff-add">${escape(l.slice(2))}</span>`
-      if (l.startsWith('- ')) return `<span class="diff-rem">${escape(l.slice(2))}</span>`
-      return escape(l)
-    }).join('\n')
-    return `<pre><span class="lang-label">${lang || 'code'}</span><code>${body}</code><button class="copy-btn" onclick="copyCode(this)">📋</button></pre>`
-  })
-  html = html.replace(/`([^`]+)`/g, '<code>$1</code>')
-  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>')
-  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>')
-  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>')
-  html = html.replace(/^- (.+)$/gm, '<li>$1</li>')
-  html = html.replace(/^\* (.+)$/gm, '<li>$1</li>')
-  html = html.replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>')
-  html = html.replace(/(<li>.*<\/li>)\n<li>/gs, '$1</li><li>')
-  html = html.replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-  html = html.replace(/\n\n/g, '</p><p>')
-  html = html.replace(/\n/g, '<br>')
-  return `<p>${html}</p>`
-}
-
-function copyCode(btn) {
-  const code = btn.parentElement.querySelector('code')
-  if (!code) return
-  navigator.clipboard.writeText(code.textContent).then(() => {
-    btn.textContent = '✓'
-    setTimeout(() => { btn.textContent = '📋' }, 1500)
-  })
-}
-
-function scrollBottom() {
-  const area = document.getElementById('chatArea')
-  requestAnimationFrame(() => { area.scrollTop = area.scrollHeight })
-}
-
-function toast(msg) {
-  const t = document.getElementById('toast')
-  t.textContent = msg
-  t.classList.add('show')
-  setTimeout(() => t.classList.remove('show'), 2500)
-}
-
-// ── UI helpers ──
-function autoResize(el) {
-  el.style.height = 'auto'
-  el.style.height = Math.min(el.scrollHeight, 200) + 'px'
-}
-
-function handleKey(e) {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage() }
-}
-
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('collapsed') }
-function openSettings() { document.getElementById('settingsModal').classList.add('open') }
-function closeSettings() { document.getElementById('settingsModal').classList.remove('open') }
-document.getElementById('settingsModal').addEventListener('click', e => {
-  if (e.target === e.currentTarget) closeSettings()
-})
-
-function setStatus(text) { document.getElementById('statusBar').textContent = text }
-
-function addMsgDom(role, content, parts) {
-  document.getElementById('welcome')?.remove()
-  const avatars = { user: '🧑', assistant: '🤖', system: '⚙️' }
-  const names = { user: 'You', assistant: 'OpenCode', system: 'System' }
-  const el = document.createElement('div')
-  el.className = 'msg'
-  let body = renderMarkdown(content)
-  if (parts) {
-    for (const p of parts) {
-      if (p.type === 'tool_use')
-        body += `<div class="tool-call">🔧 ${escape(p.name || 'tool')}(${escape(JSON.stringify(p.input || {}))})</div>`
-      else if (p.type === 'tool_result')
-        body += `<div class="tool-result">📋 ${escape(String(p.content || '').slice(0, 300))}</div>`
-      else if (p.type === 'reasoning')
-        body += `<div class="tool-call">💭 ${escape(String(p.text || p.content || '').slice(0, 200))}</div>`
-    }
-  }
-  el.innerHTML = `<div class="msg-row"><div class="msg-avatar ${role}">${avatars[role] || '?'}</div><div class="msg-body"><div class="msg-name">${names[role] || role}</div><div class="msg-text">${body}</div></div></div>`
-  document.getElementById('messages').appendChild(el)
-  scrollBottom()
-  return el
-}
-const addMsg = addMsgDom
-
-function updateStreamMsg() {
-  if (!streamEl) return
-  let body = renderMarkdown(streamText || (streamActive ? '▊' : ''))
-  for (const p of streamParts) {
-    if (p.type === 'tool_use')
-      body += `<div class="tool-call">🔧 ${escape(p.name || 'tool')}(${escape(JSON.stringify(p.input || {}))})</div>`
-    else if (p.type === 'tool_result')
-      body += `<div class="tool-result">📋 ${escape(String(p.content || '').slice(0, 300))}</div>`
-    else if (p.type === 'reasoning')
-      body += `<div class="tool-call">💭 ${escape(String(p.text || p.content || '').slice(0, 200))}</div>`
-  }
-  streamEl.querySelector('.msg-text').innerHTML = body
-  scrollBottom()
-}
-
-// ── SSE ──
-let streamMsgId = null
-function connectSSE() {
-  if (eventSource) eventSource.close()
-  eventSource = new EventSource(`${API}/event`)
-  eventSource.onmessage = (ev) => {
-    try {
-      const d = JSON.parse(ev.data)
-      const p = d.properties || {}
-      if (p.sessionID && p.sessionID !== currentSessionID) return
-
-      switch (d.type) {
-        case 'message.updated': {
-          const info = p.info || p
-          if (info.role !== 'assistant' || info.synthetic || streamActive) return
-          streamMsgId = info.id
-          streamActive = true
-          streamText = ''
-          streamParts = []
-          streamTextsByPart = {}
-          streamEl = addMsgDom('assistant', '▊')
-          break
-        }
-        case 'message.part.delta': {
-          if (!streamActive || !p.partID || p.field !== 'text') return
-          streamTextsByPart[p.partID] = (streamTextsByPart[p.partID] || '') + (p.delta || '')
-          streamText = Object.values(streamTextsByPart).join('')
-          updateStreamMsg()
-          break
-        }
-        case 'message.part.updated': {
-          if (!streamActive) return
-          const part = p.part
-          if (!part || part.synthetic) return
-          if (part.type === 'text' && part.text != null) {
-            if (part.text || !streamTextsByPart[part.id]) streamTextsByPart[part.id] = part.text
-            streamText = Object.values(streamTextsByPart).join('')
-            updateStreamMsg()
-          } else if (['tool_use','tool_result','reasoning'].includes(part.type)) {
-            const idx = streamParts.findIndex(x => x.id === part.id)
-            if (idx >= 0) streamParts[idx] = part
-            else streamParts.push(part)
-            updateStreamMsg()
-          }
-          break
-        }
-        case 'session.status': {
-          if (p.status?.type === 'idle' && streamActive) {
-            streamActive = false; streamEl = null; streamMsgId = null
-            isLoading = false
-            document.getElementById('sendBtn').disabled = false
-            setStatus('Ready')
-            loadSessions()
-          }
-          break
-        }
-      }
-    } catch {}
-  }
-  eventSource.onerror = () => {}
-}
-
-function disconnectSSE() {
-  if (eventSource) { eventSource.close(); eventSource = null }
-}
-
-// ── API ──
-async function api(path, opts = {}) {
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), opts.timeout || 120000)
-  const { headers: extraHeaders, ...rest } = opts
-  try {
-    const res = await fetch(`${API}${path}`, {
-      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json', ...extraHeaders },
-      signal: controller.signal, ...rest,
-    })
-    const text = await res.text()
-    if (!text) return null
-    const jsonStart = text.search(/[[{]/)
-    const cleaned = jsonStart > 0 ? text.slice(jsonStart) : text
-    try { return JSON.parse(cleaned) } catch { return text }
-  } finally { clearTimeout(timeout) }
-}
-
-async function createSession() {
-  const s = await api('/session', { method: 'POST', body: '{}' })
-  if (s && s.id) { currentSessionID = s.id; return s }
-  throw new Error('Failed to create session')
-}
-
-async function sendMessage() {
-  const input = document.getElementById('promptInput')
-  const text = input.value.trim()
-  if (!text || isLoading) return
-  input.value = ''; input.style.height = 'auto'
-  isLoading = true
-  document.getElementById('sendBtn').disabled = true
-  setStatus('Thinking...')
-  addMsg('user', text)
-
-  try {
-    if (!currentSessionID) await createSession()
-
-    connectSSE()
-    streamActive = false
-
-    const result = await api(`/session/${currentSessionID}/message`, {
-      method: 'POST',
-      body: JSON.stringify({ parts: [{ type: 'text', text }] }),
-      timeout: 300000,
-    })
-
-    if (!streamEl && result) {
-      if (result.info) {
-        const role = result.info.role || 'assistant'
-        const textParts = (result.parts || []).filter(p => p.type === 'text')
-        addMsgDom(role, textParts.map(p => p.text).join('\n') || '(no response)', result.parts)
-      } else if (Array.isArray(result)) {
-        for (const m of result.slice(-2)) {
-          const textParts = (m.parts || []).filter(p => p.type === 'text')
-          const content = textParts.map(p => p.text).join('\n')
-          if (content) addMsgDom(m.info?.role || 'assistant', content, m.parts)
-        }
-      }
-    }
-  } catch (err) {
-    if (!streamEl) { addMsg('system', `Error: ${err.message}`); toast(`Request failed: ${err.message}`) }
+  if (themeId === "oc-1") {
+    themeId = "oc-2"
+    localStorage.setItem(key, themeId)
+    localStorage.removeItem("opencode-theme-css-light")
+    localStorage.removeItem("opencode-theme-css-dark")
   }
 
-  if (!streamActive) {
-    isLoading = false
-    document.getElementById('sendBtn').disabled = false
-    setStatus('Ready')
+  var scheme = localStorage.getItem("opencode-color-scheme") || "system"
+  var isDark = scheme === "dark" || (scheme === "system" && matchMedia("(prefers-color-scheme: dark)").matches)
+  var mode = isDark ? "dark" : "light"
+
+  document.documentElement.dataset.theme = themeId
+  document.documentElement.dataset.colorScheme = mode
+  document.documentElement.style.backgroundColor = isDark ? "#080808" : "#fafafa"
+
+  // Update theme-color meta tag to match app color scheme
+  var metas = document.querySelectorAll("meta[name='theme-color']")
+  if (metas.length > 0) metas[0].setAttribute("content", isDark ? "#080808" : "#fafafa")
+
+  if (themeId === "oc-2") return
+
+  var css = localStorage.getItem("opencode-theme-css-" + mode)
+  if (css) {
+    var style = document.createElement("style")
+    style.id = "oc-theme-preload"
+    style.textContent =
+      ":root{color-scheme:" +
+      mode +
+      ";--text-mix-blend-mode:" +
+      (isDark ? "plus-lighter" : "multiply") +
+      ";" +
+      css +
+      "}"
+    document.head.appendChild(style)
   }
-}
-
-function sendQuickPrompt(text) {
-  document.getElementById('promptInput').value = text; sendMessage()
-}
-
-function newChat() {
-  disconnectSSE()
-  currentSessionID = null
-  streamActive = false; streamEl = null
-  document.getElementById('messages').innerHTML = ''
-  const scroll = document.getElementById('chatScroll')
-  const wel = document.createElement('div')
-  wel.className = 'welcome'; wel.id = 'welcome'
-  wel.innerHTML = document.querySelector('#welcome')?.innerHTML || '<h1>What are you building?</h1><p>OpenCode is an AI coding agent. Send a message to start a new session.</p>'
-  scroll.prepend(wel)
-  loadSessions(); toast('New chat started')
-}
-
-// ── Sessions ──
-async function loadSessions() {
-  try {
-    const sessions = await api('/session')
-    if (!Array.isArray(sessions)) return
-    const list = document.getElementById('sessionList')
-    list.innerHTML = ''
-    for (const s of sessions.slice(0, 20)) {
-      const el = document.createElement('div')
-      el.className = 'sidebar-item' + (s.id === currentSessionID ? ' active' : '')
-      el.innerHTML = `<span class="icon">💬</span><span class="name">${escape(s.title || s.slug || 'Session')}</span>${s.id === currentSessionID ? '<span class="badge">active</span>' : ''}`
-      el.onclick = () => switchToSession(s.id, el)
-      list.appendChild(el)
-    }
-  } catch {}
-}
-
-async function switchToSession(id, el) {
-  document.querySelectorAll('.sidebar-item').forEach(e => e.classList.remove('active'))
-  if (el) el.classList.add('active')
-  currentSessionID = id
-  document.getElementById('welcome')?.remove()
-  document.getElementById('messages').innerHTML = ''
-  try {
-    setStatus('Loading messages...')
-    const msgs = await api(`/session/${id}/message`)
-    if (Array.isArray(msgs)) {
-      for (const m of msgs) {
-        const role = m.info?.role || 'assistant'
-        const textParts = (m.parts || []).filter(p => p.type === 'text')
-        const content = textParts.map(p => p.text).join('\n')
-        if (content) addMsgDom(role, content, m.parts)
-      }
-    }
-    setStatus('Ready')
-  } catch { setStatus('Ready') }
-}
-
-// ── File tree ──
-async function loadFileTree() {
-  try {
-    const files = await api('/find/file?query=*.{html,js,css,json}&cwd=.')
-    if (!Array.isArray(files)) return
-    const tree = document.getElementById('fileTree')
-    tree.innerHTML = ''
-    for (const f of files.slice(0, 50)) {
-      const name = typeof f === 'string' ? f : (f.name || f.path?.split('/').pop() || 'file')
-      const el = document.createElement('div')
-      el.className = 'file-item'
-      el.innerHTML = `<span class="icon">📄</span><span class="name">${escape(name)}</span>`
-      tree.appendChild(el)
-    }
-  } catch {}
-}
-
-// ── Init ──
-async function init() {
-  if (localStorage.getItem('opencode-theme') === 'light') toggleTheme()
-  loadSessions(); loadFileTree()
-  try {
-    const sessions = await api('/session')
-    if (Array.isArray(sessions) && sessions.length > 0) {
-      const last = sessions[0]
-      currentSessionID = last.id
-      switchToSession(last.id)
-    }
-  } catch {}
-}
-init()
+})()
 </script>
-</body>
+    <script type="module" crossorigin src="/assets/index-DagI10cx.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-IYbSmp4Q.css">
+  </head>
+  <body class="antialiased overscroll-none text-12-regular overflow-hidden bg-v2-background-bg-deep">
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root" class="flex flex-col h-dvh bg-v2-background-bg-deep p-px"></div>
+  </body>
 </html>
