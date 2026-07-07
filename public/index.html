@@ -18,6 +18,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta property="og:image" content="/social-share.png" />
     <meta property="twitter:image" content="/social-share.png" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws:; font-src 'self'; manifest-src 'self'" />
     <script id="oc-theme-preload-script">;(function () {
   try {
     var key = "opencode-theme-id"
@@ -57,13 +58,19 @@
     <style>
       #oc-loading{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .3s}
       #oc-loading[data-hidden]{opacity:0;pointer-events:none}
+      #oc-loading[data-timeout]{gap:12px}
       #oc-loading svg{width:36px;height:36px;color:var(--v2-text-text-base,#1a1a1a)}
       #oc-loading .sp{width:18px;height:18px;border:2px solid;border-color:var(--v2-border-border-muted,#d4d4d4);border-top-color:var(--v2-text-text-base,#1a1a1a);border-radius:50%;animation:sp .6s linear infinite}
+      #oc-loading .err{display:none;font:440 13px/1.4 system-ui,sans-serif;color:var(--v2-text-text-faint,#999);text-align:center}
+      #oc-loading .err a{color:inherit;text-decoration:underline;cursor:pointer}
+      #oc-loading[data-timeout] .sp{display:none}
+      #oc-loading[data-timeout] .err{display:block}
       @keyframes sp{to{transform:rotate(360deg)}}
       .oc-lang-label{padding:2px 10px;font:530 11px/1.6 system-ui,sans-serif;text-transform:uppercase;letter-spacing:.5px;color:var(--v2-text-text-faint,#999);background:var(--v2-background-bg-layer-01,inherit);border-bottom:1px solid var(--v2-border-border-muted,#eee);border-radius:6px 6px 0 0}pre.shiki{padding-top:0!important}pre.shiki>code{border-radius:0 0 6px 6px}
       #oc-toast{position:fixed;top:12px;right:12px;z-index:10000;padding:10px 16px;border-radius:8px;font:530 13px/1.4 system-ui,sans-serif;color:#fff;background:#e03e3e;box-shadow:0 4px 12px rgba(0,0,0,.15);transform:translateY(-120%);opacity:0;transition:transform .25s,opacity .25s;pointer-events:none;max-width:360px}
       #oc-toast[data-show]{transform:translateY(0);opacity:1;pointer-events:auto}
-      #oc-badge{position:fixed;bottom:12px;right:12px;z-index:9998;display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:20px;font:440 11px/1 system-ui,sans-serif;background:rgba(0,0,0,.06);color:#666;cursor:default;user-select:none;backdrop-filter:blur(4px)}
+      #oc-badge{position:fixed;bottom:12px;right:12px;z-index:9998;display:flex;align-items:center;gap:6px;padding:4px 8px;border-radius:20px;font:440 11px/1 system-ui,sans-serif;background:rgba(0,0,0,.06);color:#666;cursor:default;user-select:none;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+      #oc-badge .hint{font:530 10px/1 system-ui,sans-serif;opacity:.6;cursor:pointer;width:16px;height:16px;display:flex;align-items:center;justify-content:center;border-radius:50%;border:1px solid currentColor}
       #oc-badge .dot{width:7px;height:7px;border-radius:50%}
       #oc-badge .dot.ok{background:#22c55e}
       #oc-badge .dot.fail{background:#e03e3e}
@@ -74,7 +81,7 @@
         #oc-badge{bottom:8px;right:8px;font-size:10px;padding:3px 6px}
         #oc-toast{top:8px;right:8px;left:8px;max-width:none;font-size:12px}
       }
-      #oc-shortcuts{position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.3);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .2s}
+      #oc-shortcuts{position:fixed;inset:0;z-index:10001;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.5);backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity .2s}
       #oc-shortcuts[data-open]{opacity:1;pointer-events:auto}
       #oc-shortcuts-inner{background:var(--v2-background-bg-layer-01,#fff);border-radius:10px;padding:24px;min-width:300px;max-width:90vw;box-shadow:0 8px 32px rgba(0,0,0,.2)}
       #oc-shortcuts h3{margin:0 0 16px;font:530 15px/1 system-ui,sans-serif;color:var(--v2-text-text-base,#1a1a1a)}
@@ -92,9 +99,10 @@
     <div id="oc-loading">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2a10 10 0 1 0 10 10M12 2v4m0-4H8m4 0h4" stroke-linecap="round"/></svg>
       <div class="sp"></div>
+      <div class="err">Failed to load. <a href="javascript:location.reload()">Reload</a></div>
     </div>
     <div id="oc-toast"></div>
-    <div id="oc-badge"><span class="dot"></span><span class="lbl">connecting</span></div>
+    <div id="oc-badge"><span class="dot"></span><span class="lbl">connecting</span><span class="hint" title="Keyboard shortcuts">?</span></div>
     <div id="oc-shortcuts"><div id="oc-shortcuts-inner"><h3>Keyboard Shortcuts</h3><table><tr><td>Show this help</td><td><kbd>?</kbd></td></tr><tr><td>Close modal</td><td><kbd>Esc</kbd></td></tr><tr><td>Quick command</td><td><kbd>Ctrl+K</kbd></td></tr><tr><td>Search sessions</td><td><kbd>Ctrl+Shift+F</kbd></td></tr><tr><td>New session</td><td><kbd>Ctrl+Shift+N</kbd></td></tr><tr><td>Toggle sidebar</td><td><kbd>Ctrl+Shift+B</kbd></td></tr></table></div></div>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root" class="flex flex-col h-dvh bg-v2-background-bg-deep p-px"></div>
@@ -123,7 +131,11 @@
           addLangLabels()
         })
         if(ROOT) rootObs.observe(ROOT,{childList:true})
-        setTimeout(hideLoading,8000)
+        setTimeout(function(){
+          if(ROOT && ROOT.children.length === 0 && LOADING){
+            LOADING.setAttribute('data-timeout','')
+          }
+        },8000)
 
         var langDebounce = null
         function addLangLabels(){
@@ -152,6 +164,7 @@
         }
 
         document.addEventListener('keydown',function(e){
+          if(e.repeat) return
           if(e.key === '?' && !isInput(e.target) && SHORTCUTS){
             e.preventDefault()
             SHORTCUTS.toggleAttribute('data-open')
@@ -166,14 +179,23 @@
           }
           if(e.key === 'k' && (e.ctrlKey || e.metaKey) && !e.shiftKey){
             e.preventDefault()
-            var inp = document.querySelector('[data-slot="text-input-v2-input"]')
-            if(inp) inp.focus()
+            try {
+              var inp = document.querySelector('[data-slot="text-input-v2-input"]')
+              if(inp) inp.focus()
+            } catch(_) {}
           }
         })
 
         if(SHORTCUTS){
           SHORTCUTS.addEventListener('click',function(e){
             if(e.target === SHORTCUTS) SHORTCUTS.removeAttribute('data-open')
+          })
+        }
+        var BADGE_HINT = BADGE && BADGE.querySelector('.hint')
+        if(BADGE_HINT){
+          BADGE_HINT.addEventListener('click',function(e){
+            e.stopPropagation()
+            if(SHORTCUTS) SHORTCUTS.toggleAttribute('data-open')
           })
         }
 

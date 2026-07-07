@@ -1,6 +1,6 @@
 node_modules/
 .opencode/
-opencodememories/
+.opencode-workspace/
 .ocportal.pid
 .ocportal.lock
 ocportal.log
