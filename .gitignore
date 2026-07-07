@@ -3,3 +3,13 @@ node_modules/
 opencodememories/
 .ocportal.pid
 ocportal.log
+*.log
+.env
+.env.*
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/

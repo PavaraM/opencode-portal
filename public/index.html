@@ -19,55 +19,47 @@
     <meta property="og:image" content="/social-share.png" />
     <meta property="twitter:image" content="/social-share.png" />
     <script id="oc-theme-preload-script">;(function () {
-  var key = "opencode-theme-id"
-  var themeId = localStorage.getItem(key) || "oc-2"
+  try {
+    var key = "opencode-theme-id"
+    var themeId = localStorage.getItem(key) || "oc-2"
 
-  if (themeId === "oc-1") {
-    themeId = "oc-2"
-    localStorage.setItem(key, themeId)
-    localStorage.removeItem("opencode-theme-css-light")
-    localStorage.removeItem("opencode-theme-css-dark")
-  }
+    if (themeId === "oc-1") {
+      themeId = "oc-2"
+      localStorage.setItem(key, themeId)
+      localStorage.removeItem("opencode-theme-css-light")
+      localStorage.removeItem("opencode-theme-css-dark")
+    }
 
-  var scheme = localStorage.getItem("opencode-color-scheme") || "system"
-  var isDark = scheme === "dark" || (scheme === "system" && matchMedia("(prefers-color-scheme: dark)").matches)
-  var mode = isDark ? "dark" : "light"
+    var scheme = localStorage.getItem("opencode-color-scheme") || "system"
+    var isDark = scheme === "dark" || (scheme === "system" && matchMedia("(prefers-color-scheme: dark)").matches)
+    var mode = isDark ? "dark" : "light"
 
-  document.documentElement.dataset.theme = themeId
-  document.documentElement.dataset.colorScheme = mode
-  document.documentElement.style.backgroundColor = isDark ? "#080808" : "#fafafa"
+    document.documentElement.dataset.theme = themeId
+    document.documentElement.dataset.colorScheme = mode
+    document.documentElement.style.backgroundColor = isDark ? "#080808" : "#fafafa"
 
-  var metas = document.querySelectorAll("meta[name='theme-color']")
-  if (metas.length > 0) metas[0].setAttribute("content", isDark ? "#080808" : "#fafafa")
+    var metas = document.querySelectorAll("meta[name='theme-color']")
+    if (metas.length > 0) metas[0].setAttribute("content", isDark ? "#080808" : "#fafafa")
 
-  if (themeId === "oc-2") return
+    if (themeId === "oc-2") return
 
-  var css = localStorage.getItem("opencode-theme-css-" + mode)
-  if (css) {
-    var style = document.createElement("style")
-    style.id = "oc-theme-preload"
-    style.textContent =
-      ":root{color-scheme:" +
-      mode +
-      ";--text-mix-blend-mode:" +
-      (isDark ? "plus-lighter" : "multiply") +
-      ";" +
-      css +
-      "}"
-    document.head.appendChild(style)
-  }
+    var css = localStorage.getItem("opencode-theme-css-" + mode)
+    if (css) {
+      var style = document.createElement("style")
+      style.id = "oc-theme-preload"
+      style.textContent =
+        ":root{color-scheme:" + mode + ";--text-mix-blend-mode:" + (isDark ? "plus-lighter" : "multiply") + ";" + css + "}"
+      document.head.appendChild(style)
+    }
+  } catch(e) {}
 })()
 </script>
     <style>
-      #oc-loading{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#fafafa;color:#1a1a1a;transition:opacity .3s}
+      #oc-loading{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .3s}
       #oc-loading[data-hidden]{opacity:0;pointer-events:none}
-      #oc-loading svg{width:36px;height:36px}
-      #oc-loading .sp{width:18px;height:18px;border:2px solid #d4d4d4;border-top-color:#1a1a1a;border-radius:50%;animation:sp .6s linear infinite}
+      #oc-loading svg{width:36px;height:36px;color:var(--v2-text-text-base,#1a1a1a)}
+      #oc-loading .sp{width:18px;height:18px;border:2px solid;border-color:var(--v2-border-border-muted,#d4d4d4);border-top-color:var(--v2-text-text-base,#1a1a1a);border-radius:50%;animation:sp .6s linear infinite}
       @keyframes sp{to{transform:rotate(360deg)}}
-      @media(prefers-color-scheme:dark){
-        #oc-loading{background:#080808;color:#e5e5e5}
-        #oc-loading .sp{border-color:#333;border-top-color:#e5e5e5}
-      }
       .oc-lang-label{padding:2px 10px;font:530 11px/1.6 system-ui,sans-serif;text-transform:uppercase;letter-spacing:.5px;color:var(--v2-text-text-faint,#999);background:var(--v2-background-bg-layer-01,inherit);border-bottom:1px solid var(--v2-border-border-muted,#eee);border-radius:6px 6px 0 0}pre.shiki{padding-top:0!important}pre.shiki>code{border-radius:0 0 6px 6px}
       #oc-toast{position:fixed;top:12px;right:12px;z-index:10000;padding:10px 16px;border-radius:8px;font:530 13px/1.4 system-ui,sans-serif;color:#fff;background:#e03e3e;box-shadow:0 4px 12px rgba(0,0,0,.15);transform:translateY(-120%);opacity:0;transition:transform .25s,opacity .25s;pointer-events:none;max-width:360px}
       #oc-toast[data-show]{transform:translateY(0);opacity:1;pointer-events:auto}
@@ -109,27 +101,50 @@
     <script type="module" crossorigin src="/assets/index-DagI10cx.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-IYbSmp4Q.css">
     <script>
-      ;(function(){
+      (function () {
         var LOADING = document.getElementById('oc-loading')
         var BADGE = document.getElementById('oc-badge')
-        var DOT = BADGE.querySelector('.dot')
-        var LBL = BADGE.querySelector('.lbl')
+        var DOT = BADGE && BADGE.querySelector('.dot')
+        var LBL = BADGE && BADGE.querySelector('.lbl')
         var TOAST = document.getElementById('oc-toast')
         var SHORTCUTS = document.getElementById('oc-shortcuts')
+        var ROOT = document.getElementById('root')
         var toastTimer = null
 
         function hideLoading(){
           if(LOADING) LOADING.setAttribute('data-hidden','')
         }
 
-        var ro = new MutationObserver(function(){
-          if(document.getElementById('root').children.length > 0){
+        var rootObs = new MutationObserver(function(){
+          if(ROOT && ROOT.children.length > 0){
             hideLoading()
-            ro.disconnect()
+            rootObs.disconnect()
           }
+          addLangLabels()
         })
-        ro.observe(document.getElementById('root'),{childList:true})
+        if(ROOT) rootObs.observe(ROOT,{childList:true})
         setTimeout(hideLoading,8000)
+
+        var langDebounce = null
+        function addLangLabels(){
+          clearTimeout(langDebounce)
+          langDebounce = setTimeout(function(){
+            if(!ROOT) return
+            var codes = ROOT.querySelectorAll('pre.shiki code[class*="language-"]')
+            for(var i=0;i<codes.length;i++){
+              var code=codes[i]
+              if(code.parentNode.querySelector('.oc-lang-label')) continue
+              var m=code.className.match(/language-(\S+)/)
+              if(!m) continue
+              var label=document.createElement('div')
+              label.className='oc-lang-label'
+              label.textContent=langMap[m[1]] || m[1]
+              code.parentNode.insertBefore(label,code)
+            }
+          },200)
+        }
+
+        var langMap={'javascript':'JS','typescript':'TS','python':'Python','css':'CSS','html':'HTML','jsx':'JSX','tsx':'TSX','json':'JSON','yaml':'YAML','yml':'YAML','bash':'Bash','sh':'Shell','shellscript':'Shell','markdown':'MD','md':'MD','sql':'SQL','rust':'Rust','go':'Go','ruby':'Ruby','rb':'Ruby','php':'PHP','java':'Java','c':'C','cpp':'C++','csharp':'C#','cs':'C#','swift':'Swift','kotlin':'Kotlin','scala':'Scala','dart':'Dart','lua':'Lua','perl':'Perl','r':'R','diff':'Diff','dockerfile':'Docker','docker':'Docker','vue':'Vue','svelte':'Svelte','sass':'Sass','scss':'SCSS','less':'Less','graphql':'GraphQL','gql':'GraphQL','regex':'RegExp','makefile':'Make','make':'Make','toml':'TOML','ini':'INI','cfg':'INI','powershell':'PowerShell','ps1':'PowerShell','handlebars':'HBS','hbs':'HBS','rescript':'ReScript','reason':'Reason','elm':'Elm','clojure':'Clojure','clj':'Clojure','elixir':'Elixir','ex':'Elixir','exs':'Elixir','erlang':'Erlang','haskell':'Haskell','hs':'Haskell','lisp':'Lisp','scheme':'Scheme','ocaml':'OCaml','fsharp':'F#','fs':'F#','fortran':'Fortran','cobol':'COBOL','ada':'Ada','zig':'Zig','nim':'Nim','crystal':'Crystal','groovy':'Groovy','gradle':'Groovy','coffeescript':'CoffeeScript','pug':'Pug','jade':'Pug','stylus':'Stylus','nix':'Nix','terraform':'Terraform','tf':'HCL','hcl':'HCL','proto':'Protobuf','protobuf':'Protobuf','cmake':'CMake','matlab':'MATLAB','solidity':'Solidity','sol':'Solidity'}
 
         var inputTags = {INPUT:1,TEXTAREA:1,SELECT:1}
         function isInput(el){
@@ -137,12 +152,12 @@
         }
 
         document.addEventListener('keydown',function(e){
-          if(e.key === '?' && !isInput(e.target)){
+          if(e.key === '?' && !isInput(e.target) && SHORTCUTS){
             e.preventDefault()
             SHORTCUTS.toggleAttribute('data-open')
             return
           }
-          if(e.key === 'Escape'){
+          if(e.key === 'Escape' && SHORTCUTS){
             if(SHORTCUTS.hasAttribute('data-open')){
               SHORTCUTS.removeAttribute('data-open')
               e.preventDefault()
@@ -153,15 +168,17 @@
             e.preventDefault()
             var inp = document.querySelector('[data-slot="text-input-v2-input"]')
             if(inp) inp.focus()
-            return
           }
         })
 
-        SHORTCUTS.addEventListener('click',function(e){
-          if(e.target === SHORTCUTS) SHORTCUTS.removeAttribute('data-open')
-        })
+        if(SHORTCUTS){
+          SHORTCUTS.addEventListener('click',function(e){
+            if(e.target === SHORTCUTS) SHORTCUTS.removeAttribute('data-open')
+          })
+        }
 
         function showToast(msg, duration){
+          if(!TOAST) return
           TOAST.textContent = msg
           TOAST.setAttribute('data-show','')
           clearTimeout(toastTimer)
@@ -170,18 +187,19 @@
 
         var failCount = 0
         function checkHealth(){
+          if(!DOT || !LBL) return
           var xhr = new XMLHttpRequest()
           xhr.open('GET','/api/health')
+          xhr.timeout = 10000
           xhr.onload = function(){
             if(xhr.status >= 200 && xhr.status < 400){
               DOT.className = 'dot ok'
               LBL.textContent = 'connected'
               failCount = 0
-            }else{
-              fail()
             }
           }
           xhr.onerror = fail
+          xhr.ontimeout = fail
           xhr.send()
           function fail(){
             DOT.className = 'dot fail'
@@ -194,20 +212,6 @@
 
         checkHealth()
         setInterval(checkHealth, 30000)
-
-        var langMap = {'javascript':'JS','typescript':'TS','python':'Python','css':'CSS','html':'HTML','jsx':'JSX','tsx':'TSX','json':'JSON','yaml':'YAML','yml':'YAML','bash':'Bash','sh':'Shell','shellscript':'Shell','markdown':'MD','md':'MD','sql':'SQL','rust':'Rust','go':'Go','ruby':'Ruby','rb':'Ruby','php':'PHP','java':'Java','c':'C','cpp':'C++','csharp':'C#','cs':'C#','swift':'Swift','kotlin':'Kotlin','scala':'Scala','dart':'Dart','lua':'Lua','perl':'Perl','r':'R','diff':'Diff','dockerfile':'Docker','docker':'Docker'}
-        var codeObserver = new MutationObserver(function(){
-          document.querySelectorAll('pre.shiki code[class*="language-"]').forEach(function(code){
-            if(code.parentNode.querySelector('.oc-lang-label')) return
-            var lang = code.className.match(/language-(\S+)/)
-            if(!lang) return
-            var label = document.createElement('div')
-            label.className = 'oc-lang-label'
-            label.textContent = langMap[lang[1]] || lang[1]
-            code.parentNode.insertBefore(label, code)
-          })
-        })
-        codeObserver.observe(document.getElementById('root'),{childList:true,subtree:true})
       })()
     </script>
   </body>

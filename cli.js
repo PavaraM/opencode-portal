@@ -6,7 +6,7 @@ const fs = require('fs');
 const ROOT = __dirname;
 const PID_FILE = path.join(ROOT, '.ocportal.pid');
 const LOG_FILE = path.join(ROOT, 'ocportal.log');
-const PORT = process.env.PORT || '3050';
+const PORT = process.env.PORT || '3000';
 
 function pid() {
   try { return parseInt(fs.readFileSync(PID_FILE, 'utf8'), 10); } catch { return null; }
@@ -16,32 +16,34 @@ function alive(pid) {
   try { return process.kill(pid, 0); } catch { return false; }
 }
 
-function waitAlive(url, retries) {
-  return new Promise((resolve) => {
-    const check = (n) => {
-      if (n <= 0) return resolve(false);
-      const req = http.get(url, () => { req.destroy(); resolve(true); });
-      req.on('error', () => setTimeout(() => check(n - 1), 300));
-    };
-    check(retries);
-  });
+function writePid(pid) {
+  const tmp = PID_FILE + '.tmp';
+  fs.writeFileSync(tmp, String(pid));
+  fs.renameSync(tmp, PID_FILE);
 }
 
-const http = require('http');
+function removePid() {
+  try { fs.unlinkSync(PID_FILE); } catch {}
+}
+
+function daemonize() {
+  const out = fs.openSync(LOG_FILE, 'a');
+  const child = spawn('node', ['server.js'], {
+    cwd: ROOT, detached: true, stdio: ['ignore', out, out],
+    env: { ...process.env, PORT },
+  });
+  child.unref();
+  writePid(child.pid);
+  return child.pid;
+}
+
 const sub = process.argv[2];
 
 if (sub === 'run') {
   const existing = pid();
   if (existing && alive(existing)) { console.log('ocportal already running (pid ' + existing + ')'); process.exit(0); }
-
-  const out = fs.openSync(LOG_FILE, 'a');
-  const child = spawn('node', ['server.js'], {
-    cwd: ROOT, detached: true, stdio: ['ignore', out, out],
-    env: { ...process.env, PORT, OPENCODE_SERVER_PASSWORD: '' },
-  });
-  child.unref();
-  fs.writeFileSync(PID_FILE, String(child.pid));
-  console.log('ocportal started (pid ' + child.pid + ') on port ' + PORT);
+  const p = daemonize();
+  console.log('ocportal started (pid ' + p + ') on port ' + PORT);
   process.exit(0);
 }
 
@@ -49,30 +51,25 @@ if (sub === 'stop') {
   const p = pid();
   if (p && alive(p)) { process.kill(p, 'SIGTERM'); console.log('ocportal stopped'); }
   else console.log('ocportal not running');
-  try { fs.unlinkSync(PID_FILE); } catch {}
+  removePid();
   process.exit(0);
 }
 
 if (sub === 'restart') {
   const p = pid();
   if (p && alive(p)) { process.kill(p, 'SIGTERM'); console.log('stopped'); }
-  try { fs.unlinkSync(PID_FILE); } catch {}
-
-  const out = fs.openSync(LOG_FILE, 'a');
-  const child = spawn('node', ['server.js'], {
-    cwd: ROOT, detached: true, stdio: ['ignore', out, out],
-    env: { ...process.env, PORT, OPENCODE_SERVER_PASSWORD: '' },
-  });
-  child.unref();
-  fs.writeFileSync(PID_FILE, String(child.pid));
-  console.log('ocportal restarted (pid ' + child.pid + ') on port ' + PORT);
+  removePid();
+  const np = daemonize();
+  console.log('ocportal restarted (pid ' + np + ') on port ' + PORT);
   process.exit(0);
 }
 
 if (sub === 'open') {
   const url = 'http://localhost:' + PORT;
-  const opener = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
-  spawn(opener, [url], { stdio: 'ignore', detached: true }).unref();
+  const plat = process.platform;
+  const cmd = plat === 'darwin' ? 'open' : plat === 'win32' ? 'cmd' : 'xdg-open';
+  const args = plat === 'win32' ? ['/c', 'start', url] : [url];
+  spawn(cmd, args, { stdio: 'ignore', detached: true }).unref();
   console.log('opening ' + url);
   process.exit(0);
 }
@@ -91,5 +88,46 @@ if (sub === 'status') {
   process.exit(0);
 }
 
-console.log('Usage: ocportal <run|stop|restart|open|config|status>');
+if (sub === 'logs') {
+  const child = spawn('tail', ['-f', LOG_FILE], { stdio: 'inherit' });
+  process.on('SIGINT', () => { child.kill(); process.exit(); });
+  process.on('SIGTERM', () => { child.kill(); process.exit(); });
+  return;
+}
+
+if (sub === 'foreground') {
+  const child = spawn('node', ['server.js'], {
+    cwd: ROOT, stdio: 'inherit',
+    env: { ...process.env, PORT },
+  });
+  child.on('exit', (code) => process.exit(code));
+  process.on('SIGINT', () => { child.kill(); process.exit(); });
+  process.on('SIGTERM', () => { child.kill(); process.exit(); });
+  return;
+}
+
+if (sub === '--help' || sub === '-h' || !sub) {
+  console.log('Usage: ocportal <command>');
+  console.log('');
+  console.log('Commands:');
+  console.log('  run         Start daemon in background');
+  console.log('  stop        Stop daemon');
+  console.log('  restart     Restart daemon');
+  console.log('  open        Open portal in browser');
+  console.log('  status      Show running/stopped');
+  console.log('  config      Show PORT, ROOT, PID_FILE, LOG_FILE');
+  console.log('  logs        Tail log file');
+  console.log('  foreground  Run in foreground (no daemon)');
+  console.log('  --version   Show version');
+  process.exit(0);
+}
+
+if (sub === '--version' || sub === '-v') {
+  const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
+  console.log('ocportal v' + pkg.version);
+  process.exit(0);
+}
+
+console.log('Unknown command: ' + sub);
+console.log('Usage: ocportal --help');
 process.exit(1);

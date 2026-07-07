@@ -2,10 +2,44 @@
   "name": "opencode-portal",
   "version": "0.1.1",
   "private": true,
+  "description": "Web GUI for OpenCode — AI coding agent",
+  "license": "ISC",
+  "author": "PavaraM",
   "bin": {
     "ocportal": "./cli.js"
   },
   "scripts": {
-    "start": "PORT=3050 node server.js"
-  }
+    "start": "PORT=3000 node server.js",
+    "foreground": "node cli.js foreground"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "cli.js",
+    "server.js",
+    "public/",
+    "install.sh",
+    "opencode-portal.service",
+    "start.sh",
+    "package.json",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PavaraM/opencode-portal.git"
+  },
+  "bugs": {
+    "url": "https://github.com/PavaraM/opencode-portal/issues"
+  },
+  "homepage": "https://github.com/PavaraM/opencode-portal#readme",
+  "keywords": [
+    "opencode",
+    "ai",
+    "coding",
+    "agent",
+    "web",
+    "gui",
+    "portal"
+  ]
 }
